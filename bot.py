@@ -7,9 +7,8 @@ bot = telebot.TeleBot(TOKEN)
 
 print("Bot başlatılıyor...")
 
-# Webhook varsa temizle
+# Webhook varsa sil
 bot.remove_webhook()
-
 time.sleep(2)
 
 print("Polling başlıyor...")
