@@ -6,7 +6,7 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
 )
-print("TOKEN:", os.getenv("BOT_TOKEN"))
+print("TOKEN:", os.getenv("TOKEN"))
 TOKEN = os.getenv("BOT_TOKEN")
 OWNER_ID = 1753344846
 
