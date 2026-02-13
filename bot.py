@@ -21,10 +21,11 @@ def is_owner(update: Update):
 
 async def delete_command(update: Update):
     try:
-        await update.message.delete()
+        # SADECE GRUPTA SİL
+        if update.effective_chat.type in ["group", "supergroup"]:
+            await update.message.delete()
     except:
         pass
-
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global GROUP_ID
