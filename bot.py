@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -10,6 +10,7 @@ from telegram.ext import (
 TOKEN = os.getenv("BOT_TOKEN")
 OWNER_ID = 1753344846
 
+GROUP_ID = None
 reminders = {}
 reminder_counter = 1
 
@@ -18,10 +19,21 @@ def is_owner(update: Update):
     return update.effective_user.id == OWNER_ID
 
 
+async def delete_command(update: Update):
+    try:
+        await update.message.delete()
+    except:
+        pass
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global GROUP_ID
+
     if not is_owner(update):
         return
-    await update.message.reply_text("Tuzda Balık Hatırlatıcı Aktif 🚀")
+
+    GROUP_ID = update.effective_chat.id
+    await delete_command(update)
 
 
 async def ekle(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -30,29 +42,31 @@ async def ekle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_owner(update):
         return
 
+    await delete_command(update)
+
+    if GROUP_ID is None:
+        return
+
     try:
         time_text = context.args[0]
         message_text = " ".join(context.args[1:])
         hour, minute = map(int, time_text.split(":"))
     except:
-        await update.message.reply_text(
-            "Kullanım: /ekle 14:30 Balıkları çevir"
-        )
         return
 
     now = datetime.now()
     target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
     if target < now:
-        target = target + timedelta(days=1)
+        target += timedelta(days=1)
 
     reminder_id = reminder_counter
     reminder_counter += 1
 
     async def send_reminder(context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
-            chat_id=OWNER_ID,
-            text=f"⏰ Hatırlatma: {message_text}",
+            chat_id=GROUP_ID,
+            text=f"📢 HATIRLATMA\n\n{message_text}",
         )
 
     context.job_queue.run_once(
@@ -62,62 +76,12 @@ async def ekle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reminders[reminder_id] = f"{time_text} → {message_text}"
 
-    await update.message.reply_text(
-        f"✅ Hatırlatma eklendi ({reminder_id})"
-    )
-
-
-async def liste(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_owner(update):
-        return
-
-    if not reminders:
-        await update.message.reply_text("Aktif hatırlatma yok.")
-        return
-
-    text = "📋 Aktif Hatırlatmalar:\n"
-    for rid, content in reminders.items():
-        text += f"{rid} - {content}\n"
-
-    await update.message.reply_text(text)
-
-
-async def sil(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_owner(update):
-        return
-
-    try:
-        rid = int(context.args[0])
-    except:
-        await update.message.reply_text("Kullanım: /sil 1")
-        return
-
-    if rid in reminders:
-        del reminders[rid]
-        await update.message.reply_text(f"❌ Silindi ({rid})")
-    else:
-        await update.message.reply_text("Bulunamadı.")
-
-
-async def gunluk_mesaj(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(
-        chat_id=OWNER_ID,
-        text="🐟 Günlük balık kontrol zamanı!",
-    )
-
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("ekle", ekle))
-    app.add_handler(CommandHandler("liste", liste))
-    app.add_handler(CommandHandler("sil", sil))
-
-    app.job_queue.run_daily(
-        gunluk_mesaj,
-        time(hour=9, minute=0),
-    )
 
     print("Bot çalışıyor...")
     app.run_polling()
