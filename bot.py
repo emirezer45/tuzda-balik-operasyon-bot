@@ -1,16 +1,28 @@
 import os
+from flask import Flask, request
 import telebot
-import time
 
 TOKEN = os.getenv("TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
-print("Operasyon botu başlatılıyor...")
+app = Flask(__name__)
 
-while True:
-    try:
-        print("Bot polling başlatıldı ✅")
-        bot.infinity_polling(timeout=60, long_polling_timeout=60)
-    except Exception as e:
-        print("Hata oldu, yeniden deneniyor:", e)
-        time.sleep(5)
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, "Bot aktif ✅")
+
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    json_str = request.get_data().decode("UTF-8")
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return "OK", 200
+
+@app.route("/")
+def index():
+    return "Bot çalışıyor", 200
+
+if __name__ == "__main__":
+    bot.remove_webhook()
+    bot.set_webhook(url=f"https://YOUR_RAILWAY_URL/{TOKEN}")
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
