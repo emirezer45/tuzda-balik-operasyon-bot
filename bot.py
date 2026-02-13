@@ -1,6 +1,5 @@
 import os
-import asyncio
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -42,24 +41,24 @@ async def ekle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     now = datetime.now()
-    target = now.replace(hour=hour, minute=minute, second=0)
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
     if target < now:
-        target = target.replace(day=now.day + 1)
-
-    delay = (target - now).total_seconds()
+        target = target + timedelta(days=1)
 
     reminder_id = reminder_counter
     reminder_counter += 1
 
-    async def send_reminder():
-        await asyncio.sleep(delay)
+    async def send_reminder(context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=OWNER_ID,
             text=f"⏰ Hatırlatma: {message_text}",
         )
 
-    asyncio.create_task(send_reminder())
+    context.job_queue.run_once(
+        send_reminder,
+        when=(target - now).total_seconds(),
+    )
 
     reminders[reminder_id] = f"{time_text} → {message_text}"
 
@@ -107,7 +106,7 @@ async def gunluk_mesaj(context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def main():
+def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -115,16 +114,14 @@ async def main():
     app.add_handler(CommandHandler("liste", liste))
     app.add_handler(CommandHandler("sil", sil))
 
-    job_queue = app.job_queue
-    job_queue.run_daily(
+    app.job_queue.run_daily(
         gunluk_mesaj,
         time(hour=9, minute=0),
     )
 
-    await app.run_polling()
+    print("Bot çalışıyor...")
+    app.run_polling()
 
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.get_event_loop().run_until_complete(main())
-    
+    main()
