@@ -20,9 +20,12 @@ from telegram.ext import (
 
 import os
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
+from telegram.ext import Application, CommandHandler, ContextTypes
 
 TOKEN = os.getenv("7729207035:AAHbjzutiw3hiNRbWKlZghg9Ta57Xpw0rzM")
+
+if not TOKEN:
+    raise ValueError("BOT_TOKEN environment variable is not set!")
 
 app = Application.builder().token(TOKEN).build()
 
