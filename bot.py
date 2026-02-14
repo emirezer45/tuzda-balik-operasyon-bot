@@ -21,7 +21,12 @@ from telegram.ext import (
 import os
 
 TOKEN = os.getenv("7729207035:AAHgaa3LzvETQ2k5Of_QPXdvZOR2-vUNh0o")
+from telegram.ext import ApplicationBuilder
 
+TOKEN = "7729207035:AAHgaa3LzvETQ2k5Of_QPXdvZOR2-vUNh0o:AA..."
+
+app = ApplicationBuilder().token(TOKEN).build()
+app.run_polling()
 app = Application.builder().token(TOKEN).build()
 
 CHAT_ID = -5143299793
