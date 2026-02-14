@@ -1,3 +1,4 @@
+from datetime import time
 import logging
 import sqlite3
 from datetime import datetime, timedelta
@@ -96,14 +97,15 @@ async def vade_kontrol(context):
     for r in rows:
         await context.bot.send_message(chat_id=GROUP_ID,text=f"BUGÜN VADE: {r[0]} - {r[1]} TL")
 
-# async def zamanlayici(application):
-    application.job_queue.run_daily(checklist_12, time=datetime.strptime("12:00","%H:%M").time())
-    application.job_queue.run_daily(checklist_14, time=datetime.strptime("14:00","%H:%M").time())
-    application.job_queue.run_daily(checklist_15, time=datetime.strptime("15:00","%H:%M").time())
-    application.job_queue.run_daily(checklist_19, time=datetime.strptime("19:00","%H:%M").time())
-    application.job_queue.run_daily(checklist_23, time=datetime.strptime("23:00","%H:%M").time())
+ async def zamanlayici(application):
 
-    application.job_queue.run_repeating(vade_kontrol, interval=3600, first=10) application.job_queue.run_repeating(vade_kontrol, interval=3600, first=10)
+    application.job_queue.run_daily(checklist_12, time=time(hour=12, minute=0))
+    application.job_queue.run_daily(checklist_14, time=time(hour=14, minute=0))
+    application.job_queue.run_daily(checklist_15, time=time(hour=15, minute=0))
+    application.job_queue.run_daily(checklist_19, time=time(hour=19, minute=0))
+    application.job_queue.run_daily(checklist_23, time=time(hour=23, minute=0))
+
+    application.job_queue.run_repeating(vade_kontrol, interval=3600, first=10)
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
