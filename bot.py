@@ -17,7 +17,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-TOKEN = os.getenv("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")
+TOKEN = ("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")
 GROUP_ID = -5143299793  # Grup ID
 
 if not TOKEN:
