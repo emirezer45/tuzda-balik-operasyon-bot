@@ -1,125 +1,56 @@
-from datetime import time
 import logging
-import sqlite3
-from datetime import datetime, timedelta
+from datetime import time
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-import os
+from telegram.ext import Application, CommandHandler, ContextTypes
 
-TOKEN = os.getenv("TOKEN")
+TOKEN = "BURAYA_BOT_TOKENİNİ_YAZ"
 GROUP_ID = -5143299793
 
 logging.basicConfig(level=logging.INFO)
 
-conn = sqlite3.connect("data.db", check_same_thread=False)
-cursor = conn.cursor()
+# ---------------- CHECKLIST MESAJLARI ---------------- #
 
-# DATABASE
-cursor.execute("CREATE TABLE IF NOT EXISTS odemeler (isim TEXT, tutar REAL, vade TEXT)")
-cursor.execute("CREATE TABLE IF NOT EXISTS ciro (tarih TEXT, tutar REAL)")
-cursor.execute("CREATE TABLE IF NOT EXISTS rezervasyon (isim TEXT, saat TEXT)")
-conn.commit()
+async def checklist_12(context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=GROUP_ID, text="🕛 12:00 AÇILIŞ CHECKLIST\n- Işıklar açık mı?\n- Sistemler aktif mi?\n- Personel hazır mı?")
 
-# YETKI
-def yetkili(update):
-    return update.effective_chat.id == GROUP_ID
+async def checklist_14(context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=GROUP_ID, text="🕑 14:00 KASA CHECKLIST\n- Nakit kontrol edildi mi?\n- POS çalışıyor mu?")
 
-async def checklist_12(context):
-    await context.bot.send_message(chat_id=GROUP_ID, text="12:00 Açılış Checklist")
+async def checklist_15(context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=GROUP_ID, text="🧹 15:00 TEMİZLİK CHECKLIST\n- Masa düzeni kontrol edildi mi?\n- WC temiz mi?")
 
-async def checklist_14(context):
-    await context.bot.send_message(chat_id=GROUP_ID, text="14:00 Kasa Checklist")
+async def checklist_19(context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=GROUP_ID, text="🍽 19:00 SERVİS CHECKLIST\n- Rezervasyonlar hazır mı?\n- Mutfak hazır mı?")
 
-async def checklist_15(context):
-    await context.bot.send_message(chat_id=GROUP_ID, text="15:00 Temizlik Checklist")
+async def checklist_23(context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=GROUP_ID, text="🔒 23:00 KASA KONTROL\n- Gün sonu alındı mı?\n- Kasa kapandı mı?")
 
-async def checklist_19(context):
-    await context.bot.send_message(chat_id=GROUP_ID, text="19:00 Servis Checklist")
+# ---------------- KOMUT ---------------- #
 
-async def checklist_23(context):
-    await context.bot.send_message(chat_id=GROUP_ID, text="23:00 Kasa Kontrol Checklist")
-# KOMUTLAR
-async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not yetkili(update): return
-    isim = context.args[0]
-    tutar = float(context.args[1])
-    vade = context.args[2]
-    cursor.execute("INSERT INTO odemeler VALUES (?,?,?)", (isim,tutar,vade))
-    conn.commit()
-    await update.message.reply_text("Ödeme kaydedildi.")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🤖 Restoran Yönetim Botu Aktif!")
 
-async def odemeler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not yetkili(update): return
-    cursor.execute("SELECT * FROM odemeler")
-    rows = cursor.fetchall()
-    text = "Ödemeler:\n"
-    for r in rows:
-        text += f"{r[0]} - {r[1]} TL - {r[2]}\n"
-    await update.message.reply_text(text)
+# ---------------- ZAMANLAYICI ---------------- #
 
-async def ciro(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not yetkili(update): return
-    tutar = float(context.args[0])
-    tarih = datetime.now().strftime("%d-%m-%Y")
-    cursor.execute("INSERT INTO ciro VALUES (?,?)",(tarih,tutar))
-    conn.commit()
-    await update.message.reply_text("Ciro kaydedildi.")
+async def setup_jobs(app: Application):
 
-async def rezervasyon(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not yetkili(update): return
-    isim = context.args[0]
-    saat = context.args[1]
-    cursor.execute("INSERT INTO rezervasyon VALUES (?,?)",(isim,saat))
-    conn.commit()
-    await update.message.reply_text("Rezervasyon eklendi.")
+    app.job_queue.run_daily(checklist_12, time=time(hour=12, minute=0))
+    app.job_queue.run_daily(checklist_14, time=time(hour=14, minute=0))
+    app.job_queue.run_daily(checklist_15, time=time(hour=15, minute=0))
+    app.job_queue.run_daily(checklist_19, time=time(hour=19, minute=0))
+    app.job_queue.run_daily(checklist_23, time=time(hour=23, minute=0))
 
-async def rezervasyonlar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not yetkili(update): return
-    cursor.execute("SELECT * FROM rezervasyon")
-    rows = cursor.fetchall()
-    text = "Rezervasyonlar:\n"
-    for r in rows:
-        text += f"{r[0]} - {r[1]}\n"
-    await update.message.reply_text(text)
+# ---------------- MAIN ---------------- #
 
-async def hatirlat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not yetkili(update): return
-    dakika = int(context.args[0])
-    mesaj = " ".join(context.args[1:])
-    context.job_queue.run_once(lambda c: c.bot.send_message(chat_id=GROUP_ID,text=mesaj), dakika*60)
-    await update.message.reply_text("Hatırlatma kuruldu.")
+async def main():
+    app = Application.builder().token(TOKEN).build()
 
-# OTOMATIK Vade Kontrol
-async def vade_kontrol(context):
-    bugun = datetime.now().strftime("%d-%m-%Y")
-    cursor.execute("SELECT * FROM odemeler WHERE vade=?", (bugun,))
-    rows = cursor.fetchall()
-    for r in rows:
-        await context.bot.send_message(chat_id=GROUP_ID,text=f"BUGÜN VADE: {r[0]} - {r[1]} TL")
+    app.add_handler(CommandHandler("start", start))
 
- async def zamanlayici(application):
+    await setup_jobs(app)
 
-    application.job_queue.run_daily(checklist_12, time=time(hour=12, minute=0))
-    application.job_queue.run_daily(checklist_14, time=time(hour=14, minute=0))
-    application.job_queue.run_daily(checklist_15, time=time(hour=15, minute=0))
-    application.job_queue.run_daily(checklist_19, time=time(hour=19, minute=0))
-    application.job_queue.run_daily(checklist_23, time=time(hour=23, minute=0))
-
-    application.job_queue.run_repeating(vade_kontrol, interval=3600, first=10)
-
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    app.add_handler(CommandHandler("odeme", odeme))
-    app.add_handler(CommandHandler("odemeler", odemeler))
-    app.add_handler(CommandHandler("ciro", ciro))
-    app.add_handler(CommandHandler("rezervasyon", rezervasyon))
-    app.add_handler(CommandHandler("rezervasyonlar", rezervasyonlar))
-    app.add_handler(CommandHandler("hatirlat", hatirlat))
-
-    app.post_init = zamanlayici
-
-    app.run_polling()
+    await app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
