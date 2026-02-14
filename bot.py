@@ -1,157 +1,107 @@
 import logging
-import json
-import os
 from datetime import time
-from zoneinfo import ZoneInfo
+import pytz
 
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup
-)
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
+    CallbackQueryHandler,
     ContextTypes,
-    CallbackQueryHandler
 )
 
-# ================== AYARLAR ==================
-
 TOKEN = "7729207035:AAHXP6Nb6PLOhnnQQfKqc7VS0z1g6_zwPM4"
-GROUP_ID = -5143299793
-ADMIN_IDS = [1753344846]
-
-DATA_FILE = "data.json"
-tz = ZoneInfo("Europe/Istanbul")
-
-# ================== LOG ==================
+CHAT_ID = -5143299793  # Grup ID
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 
-# ================== DATA ==================
+tz = pytz.timezone("Europe/Istanbul")
 
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {}
-    with open(DATA_FILE, "r") as f:
-        return json.load(f)
 
-def save_data(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f)
-
-def reset_daily():
-    data = {
-        "12": None,
-        "14": None,
-        "15": None,
-        "19": None,
-        "23": None
-    }
-    save_data(data)
-
-# ================== CHECKLIST GÖNDER ==================
-
-async def send_checklist(context: ContextTypes.DEFAULT_TYPE, saat):
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Tamamlandı", callback_data=f"done_{saat}")]
-    ])
+# =========================
+# CHECKLIST MESAJI
+# =========================
+async def send_checklist(context: ContextTypes.DEFAULT_TYPE, title):
+    keyboard = [
+        [InlineKeyboardButton("✅ Tamamlandı", callback_data=f"done_{title}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
     await context.bot.send_message(
-        chat_id=GROUP_ID,
-        text=f"⏰ {saat}:00 Checklist\n\nButona basarak tamamlayın.",
-        reply_markup=keyboard
+        chat_id=CHAT_ID,
+        text=f"📋 {title} Checklist\n\nHazır olduğunda butona basın.",
+        reply_markup=reply_markup
     )
 
-# ================== BUTON ==================
 
+# =========================
+# BUTON TIKLANINCA
+# =========================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    user = query.from_user
-    saat = query.data.split("_")[1]
+    user = query.from_user.first_name
+    data = query.data.replace("done_", "")
 
-    data = load_data()
+    await query.edit_message_text(
+        text=f"✅ {data} tamamlandı.\n👤 {user}"
+    )
 
-    if data.get(saat):
-        await query.edit_message_text(f"❗ {saat}:00 zaten {data[saat]} tarafından tamamlandı.")
-        return
 
-    data[saat] = user.full_name
-    save_data(data)
-
-    await query.edit_message_text(f"✔ {saat}:00 checklist {user.full_name} tarafından tamamlandı.")
-
-# ================== GÜN SONU RAPOR ==================
-
-async def daily_report(context: ContextTypes.DEFAULT_TYPE):
-    data = load_data()
-
-    text = "📊 Günlük Rapor\n\n"
-
-    for saat in ["12", "14", "15", "19", "23"]:
-        if data.get(saat):
-            text += f"✔ {saat}:00 – {data[saat]}\n"
-        else:
-            text += f"❌ {saat}:00 – Yapılmadı\n"
-
-    await context.bot.send_message(chat_id=GROUP_ID, text=text)
-
-    reset_daily()
-
-# ================== KOMUTLAR ==================
-
+# =========================
+# START KOMUTU
+# =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Bot Aktif ✅")
+    await update.message.reply_text("🚀 FULL PROFESYONEL BOT AKTİF 🇹🇷")
 
-async def durum(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Bot aktif 🇹🇷 Türkiye saati kullanılıyor.\nKayıt sistemi aktif.")
 
-async def duyuru(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMIN_IDS:
-        return
-
-    mesaj = " ".join(context.args)
-    await context.bot.send_message(chat_id=GROUP_ID, text=f"📢 DUYURU:\n\n{mesaj}")
-
-# ================== MAIN ==================
-
+# =========================
+# MAIN
+# =========================
 def main():
-    if not os.path.exists(DATA_FILE):
-        reset_daily()
-
     app = ApplicationBuilder().token(TOKEN).build()
 
-app.add_handler(CommandHandler("start",start))
+    app.bot.delete_webhook(drop_pending_updates=True)
 
-app.add_handler(CommandHandler("durum",durum)) 
-
-app.add_handler(CommandHandler("duyuru",duyuru))
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
-app.bot.delete_webhook(drop_pending_updates=True)
-
-job_queue.run_once(lambda c: send_checklist(c, "TEST"), 5)
-
-app.run_polling()
 
     job_queue = app.job_queue
 
-    job_queue.run_daily(lambda c: send_checklist(c, "12"), time(12, 0, tzinfo=tz))
-    job_queue.run_daily(lambda c: send_checklist(c, "14"), time(14, 0, tzinfo=tz))
-    job_queue.run_daily(lambda c: send_checklist(c, "15"), time(15, 0, tzinfo=tz))
-    job_queue.run_daily(lambda c: send_checklist(c, "19"), time(19, 0, tzinfo=tz))
-    job_queue.run_daily(lambda c: send_checklist(c, "23"), time(23, 0, tzinfo=tz))
+    # Günlük checklist saatleri
+    job_queue.run_daily(
+        lambda c: send_checklist(c, "12:00 Açılış"),
+        time(hour=12, minute=0, tzinfo=tz),
+    )
 
-    job_queue.run_daily(daily_report, time(23, 30, tzinfo=tz))
+    job_queue.run_daily(
+        lambda c: send_checklist(c, "14:00 Kasa"),
+        time(hour=14, minute=0, tzinfo=tz),
+    )
+
+    job_queue.run_daily(
+        lambda c: send_checklist(c, "15:00 Temizlik"),
+        time(hour=15, minute=0, tzinfo=tz),
+    )
+
+    job_queue.run_daily(
+        lambda c: send_checklist(c, "19:00 Servis Kontrol"),
+        time(hour=19, minute=0, tzinfo=tz),
+    )
+
+    job_queue.run_daily(
+        lambda c: send_checklist(c, "23:00 Kasa Kontrol"),
+        time(hour=23, minute=0, tzinfo=tz),
+    )
 
     logging.info("FULL PROFESYONEL BOT BAŞLATILDI 🇹🇷")
 
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
