@@ -73,7 +73,11 @@ def main():
     job_queue = app.job_queue
 
     # Günlük checklist saatleri
-    job_queue.run_daily(
+   job_queue.run_once(
+    lambda c: send_checklist(c, "TEST CHECK"),
+    10
+)
+ job_queue.run_daily(
         lambda c: send_checklist(c, "12:00 Açılış"),
         time(hour=12, minute=0, tzinfo=tz),
     )
