@@ -10,7 +10,9 @@ print("Bot başlatılıyor...")
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.send_message(message.chat.id, "Bot aktif ✅")
-
+@bot.message_handler(commands=['id'])
+def id_goster(message):
+    bot.reply_to(message, f"Chat ID: {message.chat.id}")
 while True:
     try:
         print("Polling başlıyor...")
@@ -18,6 +20,3 @@ while True:
     except Exception as e:
         print("Hata:", e)
         time.sleep(5)
-@bot.message_handler(func=lambda message: True)
-def grup_id_goster(message):
-    print("CHAT ID:", message.chat.id)
