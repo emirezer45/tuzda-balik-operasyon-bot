@@ -24,6 +24,8 @@ tz = pytz.timezone("Europe/Istanbul")
 # =========================
 # CHECKLIST MESAJI
 # =========================
+async def test_job(context: ContextTypes.DEFAULT_TYPE):
+    await send_checklist(context, "TEST CHECK")
 async def send_checklist(context: ContextTypes.DEFAULT_TYPE, title):
     keyboard = [
         [InlineKeyboardButton("✅ Tamamlandı", callback_data=f"done_{title}")]
@@ -74,9 +76,7 @@ def main():
 
     # Günlük checklist saatleri
   
-job_queue.run_once(
-    lambda c: send_checklist(c, "TEST CHECK"),
-    10
+job_queue.run_once(test_job, 10)
 )
  job_queue.run_daily(
         lambda c: send_checklist(c, "12:00 Açılış"),
