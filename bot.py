@@ -15,7 +15,7 @@ from telegram.ext import (
 # AYARLAR
 # ==============================
 
-TOKEN = os.getenv("7729207035:AAGQLgaJA-nC5yL7E529lEEcX8d2fVR_6hc")  # Railway ENV'den alır
+TOKEN = os.getenv("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")  # Railway ENV'den alır
 CHAT_ID = -5143299793
 OWNER_ID = 1753344846
 
