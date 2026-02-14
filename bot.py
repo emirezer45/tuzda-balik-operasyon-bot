@@ -1,5 +1,5 @@
-import os
 import telebot
+import os
 import time
 
 TOKEN = os.getenv("TOKEN")
@@ -7,15 +7,14 @@ bot = telebot.TeleBot(TOKEN)
 
 print("Bot başlatılıyor...")
 
-# Webhook varsa sil
-bot.remove_webhook()
-time.sleep(2)
-
-print("Polling başlıyor...")
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.send_message(message.chat.id, "Bot aktif ✅")
 
 while True:
     try:
-        bot.infinity_polling(skip_pending=True)
+        print("Polling başlıyor...")
+        bot.polling(none_stop=True, timeout=60)
     except Exception as e:
         print("Hata:", e)
         time.sleep(5)
