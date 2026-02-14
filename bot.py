@@ -131,7 +131,7 @@ app.bot.delete_webhook(drop_pending_updates=True)
 job_queue.run_once(lambda c: send_checklist(c, "TEST"), 5)
 app.run_polling()
 
-    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("start",start))
     app.add_handler(CommandHandler("durum", durum))
     app.add_handler(CommandHandler("duyuru", duyuru))
     app.add_handler(CallbackQueryHandler(button_handler))
