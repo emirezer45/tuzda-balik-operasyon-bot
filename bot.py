@@ -15,7 +15,12 @@ from telegram.ext import (
 # AYARLAR
 # ==============================
 
-TOKEN = os.getenv("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")  # Railway ENV'den alır
+print("ENV TOKEN:", repr(TOKEN))
+import os
+TOKEN = os.getenv("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")
+
+if not TOKEN:
+    raise ValueError("BOT_TOKEN bulunamadı!")
 CHAT_ID = -5143299793
 OWNER_ID = 1753344846
 
