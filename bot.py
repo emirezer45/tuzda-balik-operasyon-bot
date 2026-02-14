@@ -22,14 +22,6 @@ import os
 
 TOKEN = os.getenv("7729207035:AAHgaa3LzvETQ2k5Of_QPXdvZOR2-vUNh0o")
 
-if not TOKEN:
-    print("BOT_TOKEN bulunamadı!")
-else:
-    print("BOT_TOKEN bulundu!")
-
-if not TOKEN:
-    raise ValueError("BOT_TOKEN environment variable is not set!")
-
 app = Application.builder().token(TOKEN).build()
 
 CHAT_ID = -5143299793
