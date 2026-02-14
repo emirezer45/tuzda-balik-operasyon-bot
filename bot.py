@@ -14,10 +14,12 @@ from telegram.ext import (
 # ==============================
 # AYARLAR
 # ==============================
-
-print("ENV TOKEN:", repr(TOKEN))
 import os
-TOKEN = os.getenv("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")
+
+TOKEN = 
+os.getenv("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")
+
+print("ENV TOKEN:", repr(TOKEN))  # test için
 
 if not TOKEN:
     raise ValueError("BOT_TOKEN bulunamadı!")
