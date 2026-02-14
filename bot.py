@@ -14,12 +14,8 @@ from telegram.ext import (
     ContextTypes,
 )
 
-# ==============================
-# AYARLAR
-# ==============================
-
 TOKEN = "7729207035:AAHXP6Nb6PLOhnnQQfKqc7VS0z1g6_zwPM4"
-CHAT_ID = -5143299793  # GRUP ID (başında -100 olmalı)
+CHAT_ID = -5143299793
 
 CHECK_ITEMS = [
     "Personel hazır mı?",
@@ -32,26 +28,24 @@ CHECK_ITEMS = [
 logging.basicConfig(level=logging.INFO)
 
 # ==============================
-# CHECKLIST MESAJ GÖNDERME
+# CHECKLIST GÖNDER
 # ==============================
 
 async def send_checklist(context: ContextTypes.DEFAULT_TYPE, title: str):
 
-    keyboard = []
-    for i, item in enumerate(CHECK_ITEMS):
-        keyboard.append([
-            InlineKeyboardButton(
-                f"⬜ {item}",
-                callback_data=f"check_{i}"
-            )
-        ])
+    context.bot_data["checklist_state"] = {
+        i: None for i in range(len(CHECK_ITEMS))
+    }
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    keyboard = [
+        [InlineKeyboardButton(f"⬜ {item}", callback_data=f"check_{i}")]
+        for i, item in enumerate(CHECK_ITEMS)
+    ]
 
     await context.bot.send_message(
         chat_id=CHAT_ID,
         text=f"📋 {title}\n\nİlerleme: 0%",
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 # ==============================
@@ -62,40 +56,35 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    user = query.from_user.first_name
     data = query.data
 
     if not data.startswith("check_"):
         return
 
     index = int(data.split("_")[1])
+    user = query.from_user.first_name
 
-    message_text = query.message.text
-    completed_count = message_text.count("✅")
+    state = context.bot_data.get("checklist_state", {})
 
+    # Eğer zaten işaretlendiyse tekrar işlem yapma
+    if state.get(index) is not None:
+        return
+
+    state[index] = user
+
+    # Yeni klavye oluştur
     keyboard = []
-    new_completed = 0
+    completed = 0
 
     for i, item in enumerate(CHECK_ITEMS):
-
-        if i == index:
+        if state[i] is not None:
             keyboard.append([
                 InlineKeyboardButton(
-                    f"✅ {item} - {user}",
+                    f"✅ {item} - {state[i]}",
                     callback_data="done"
                 )
             ])
-            new_completed += 1
-
-        elif f"✅ {item}" in message_text:
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"✅ {item}",
-                    callback_data="done"
-                )
-            ])
-            new_completed += 1
-
+            completed += 1
         else:
             keyboard.append([
                 InlineKeyboardButton(
@@ -104,12 +93,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             ])
 
-    percent = int((new_completed / len(CHECK_ITEMS)) * 100)
+    percent = int((completed / len(CHECK_ITEMS)) * 100)
 
+    status = ""
     if percent == 100:
         status = "\n\n🎉 TÜM CHECKLIST TAMAMLANDI!"
-    else:
-        status = ""
 
     await query.edit_message_text(
         text=f"📋 Günlük Checklist\n\nİlerleme: {percent}%{status}",
@@ -117,14 +105,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # ==============================
-# START KOMUTU
+# START
 # ==============================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🚀 FULL PROFESYONEL BOT AKTİF 🇹🇷")
+    await update.message.reply_text("🚀 PROFESYONEL BOT AKTİF 🇹🇷")
 
 # ==============================
-# TEST JOB (10 SANİYE)
+# TEST JOB
 # ==============================
 
 async def test_job(context: ContextTypes.DEFAULT_TYPE):
@@ -142,7 +130,6 @@ def main():
 
     job_queue = app.job_queue
 
-    # 🔥 10 saniyede test
     job_queue.run_once(test_job, 10)
 
     tz = ZoneInfo("Europe/Istanbul")
@@ -172,7 +159,7 @@ def main():
         time(23, 0, tzinfo=tz),
     )
 
-    print("🚀 FULL PROFESYONEL RESTORAN BOT BAŞLATILDI 🇹🇷")
+    print("🚀 PROFESYONEL RESTORAN BOT BAŞLATILDI 🇹🇷")
 
     app.run_polling()
 
