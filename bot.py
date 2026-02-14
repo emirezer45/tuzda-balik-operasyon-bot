@@ -23,10 +23,20 @@ conn.commit()
 def yetkili(update):
     return update.effective_chat.id == GROUP_ID
 
-# CHECKLIST GÖNDER
-async def checklist_gonder(context, mesaj):
-    await context.bot.send_message(chat_id=GROUP_ID, text=mesaj)
+async def checklist_12(context):
+    await context.bot.send_message(chat_id=GROUP_ID, text="12:00 Açılış Checklist")
 
+async def checklist_14(context):
+    await context.bot.send_message(chat_id=GROUP_ID, text="14:00 Kasa Checklist")
+
+async def checklist_15(context):
+    await context.bot.send_message(chat_id=GROUP_ID, text="15:00 Temizlik Checklist")
+
+async def checklist_19(context):
+    await context.bot.send_message(chat_id=GROUP_ID, text="19:00 Servis Checklist")
+
+async def checklist_23(context):
+    await context.bot.send_message(chat_id=GROUP_ID, text="23:00 Kasa Kontrol Checklist")
 # KOMUTLAR
 async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not yetkili(update): return
@@ -86,14 +96,14 @@ async def vade_kontrol(context):
     for r in rows:
         await context.bot.send_message(chat_id=GROUP_ID,text=f"BUGÜN VADE: {r[0]} - {r[1]} TL")
 
-# GÜNLÜK CHECKLISTLER
-async def zamanlayici(application):
-    application.job_queue.run_daily(lambda c: checklist_gonder(c,"12:00 Açılış Checklist"), time=datetime.strptime("12:00","%H:%M").time())
-    application.job_queue.run_daily(lambda c: checklist_gonder(c,"14:00 Kasa Checklist"), time=datetime.strptime("14:00","%H:%M").time())
-    application.job_queue.run_daily(lambda c: checklist_gonder(c,"15:00 Temizlik Checklist"), time=datetime.strptime("15:00","%H:%M").time())
-    application.job_queue.run_daily(lambda c: checklist_gonder(c,"19:00 Servis Checklist"), time=datetime.strptime("19:00","%H:%M").time())
-    application.job_queue.run_daily(lambda c: checklist_gonder(c,"23:00 Kasa Kontrol Checklist"), time=datetime.strptime("23:00","%H:%M").time())
-    application.job_queue.run_repeating(vade_kontrol, interval=3600, first=10)
+# async def zamanlayici(application):
+    application.job_queue.run_daily(checklist_12, time=datetime.strptime("12:00","%H:%M").time())
+    application.job_queue.run_daily(checklist_14, time=datetime.strptime("14:00","%H:%M").time())
+    application.job_queue.run_daily(checklist_15, time=datetime.strptime("15:00","%H:%M").time())
+    application.job_queue.run_daily(checklist_19, time=datetime.strptime("19:00","%H:%M").time())
+    application.job_queue.run_daily(checklist_23, time=datetime.strptime("23:00","%H:%M").time())
+
+    application.job_queue.run_repeating(vade_kontrol, interval=3600, first=10) application.job_queue.run_repeating(vade_kontrol, interval=3600, first=10)
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
