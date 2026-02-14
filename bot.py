@@ -11,7 +11,7 @@ from telegram.ext import (
 )
 
 TOKEN = "7729207035:AAHXP6Nb6PLOhnnQQfKqc7VS0z1g6_zwPM4"
-CHAT_ID = -100XXXXXXXXXX  # GERÇEK GRUP ID
+CHAT_ID = -5143299793 # GERÇEK GRUP ID
 
 logging.basicConfig(level=logging.INFO)
 
