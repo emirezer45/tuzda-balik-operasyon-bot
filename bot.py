@@ -3,85 +3,111 @@ import logging
 from zoneinfo import ZoneInfo
 from datetime import time
 
-from telegram import Update
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 from telegram.ext import (
     ApplicationBuilder,
-    CommandHandler,
+    CallbackQueryHandler,
     ContextTypes,
 )
 
-# ---------------- LOG AYARI ---------------- #
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+logging.basicConfig(level=logging.INFO)
 
 TOKEN = ("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")
-GROUP_ID = -5143299793  # Grup ID
+GROUP_ID = -5143299793
 
 if not TOKEN:
     raise ValueError("BOT_TOKEN bulunamadı!")
 
-# ---------------- KOMUTLAR ---------------- #
+# Günlük durum kaydı
+daily_status = {
+    "12": None,
+    "14": None,
+    "15": None,
+    "19": None,
+    "23": None,
+}
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info("START komutu çalıştı")
-    await update.message.reply_text("Bot Aktif ✅")
+# ---------------- CHECKLIST GÖNDER ---------------- #
 
-async def checklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info("CHECKLIST komutu çalıştı")
-    await update.message.reply_text(
-        "📋 Günlük Checklist Saatleri:\n\n"
-        "12:00 Açılış\n"
-        "14:00 Kasa\n"
-        "15:00 Temizlik\n"
-        "19:00 Servis Kontör\n"
-        "23:00 Kasa Kontrol"
+async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE, saat):
+
+    daily_status[saat] = None
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Tamamlandı", callback_data=f"done_{saat}")]
+    ])
+
+    await context.bot.send_message(
+        chat_id=GROUP_ID,
+        text=f"🕛 {saat}:00 Checklist\n\nButona basarak tamamlayın.",
+        reply_markup=keyboard
     )
 
-async def durum(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info("DURUM komutu çalıştı")
-    await update.message.reply_text("Bot aktif ve scheduler çalışıyor ✅")
+# ---------------- BUTON ---------------- #
 
-# ---------------- OTOMATİK MESAJLAR ---------------- #
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
 
-async def checklist_12(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=GROUP_ID, text="🕛 12:00 Açılış Checklist")
+    data = query.data
 
-async def checklist_14(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=GROUP_ID, text="🕑 14:00 Kasa Checklist")
+    if data.startswith("done_"):
+        saat = data.split("_")[1]
+        user = query.from_user.first_name
 
-async def checklist_15(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=GROUP_ID, text="🕒 15:00 Temizlik Checklist")
+        if daily_status[saat] is None:
+            daily_status[saat] = user
 
-async def checklist_19(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=GROUP_ID, text="🕖 19:00 Servis Kontör Checklist")
+            await query.edit_message_text(
+                f"🕛 {saat}:00 Checklist\n\n"
+                f"✅ Tamamlandı - {user}"
+            )
+        else:
+            await query.answer("Zaten tamamlandı.", show_alert=True)
 
-async def checklist_23(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=GROUP_ID, text="🕚 23:00 Kasa Kontrol Checklist")
+# ---------------- GÜN SONU RAPOR ---------------- #
+
+async def gun_sonu_rapor(context: ContextTypes.DEFAULT_TYPE):
+
+    mesaj = "📊 GÜN SONU RAPORU\n\n"
+
+    for saat, user in daily_status.items():
+        if user:
+            mesaj += f"✔ {saat}:00 - {user}\n"
+        else:
+            mesaj += f"❌ {saat}:00 Yapılmadı\n"
+
+    await context.bot.send_message(chat_id=GROUP_ID, text=mesaj)
 
 # ---------------- MAIN ---------------- #
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # Komutlar
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("checklist", checklist))
-    app.add_handler(CommandHandler("durum", durum))
+    app.add_handler(CallbackQueryHandler(button))
 
-    # Scheduler
     tz = ZoneInfo("Europe/Istanbul")
     job_queue = app.job_queue
 
-    job_queue.run_daily(checklist_12, time(hour=12, minute=0, tzinfo=tz))
-    job_queue.run_daily(checklist_14, time(hour=14, minute=0, tzinfo=tz))
-    job_queue.run_daily(checklist_15, time(hour=15, minute=0, tzinfo=tz))
-    job_queue.run_daily(checklist_19, time(hour=19, minute=0, tzinfo=tz))
-    job_queue.run_daily(checklist_23, time(hour=23, minute=0, tzinfo=tz))
+    job_queue.run_daily(lambda c: checklist_gonder(c, "12"),
+                        time(12, 0, tzinfo=tz))
+    job_queue.run_daily(lambda c: checklist_gonder(c, "14"),
+                        time(14, 0, tzinfo=tz))
+    job_queue.run_daily(lambda c: checklist_gonder(c, "15"),
+                        time(15, 0, tzinfo=tz))
+    job_queue.run_daily(lambda c: checklist_gonder(c, "19"),
+                        time(19, 0, tzinfo=tz))
+    job_queue.run_daily(lambda c: checklist_gonder(c, "23"),
+                        time(23, 0, tzinfo=tz))
 
-    logging.info("BOT BAŞLATILDI")
+    job_queue.run_daily(gun_sonu_rapor,
+                        time(23, 30, tzinfo=tz))
+
+    logging.info("BUTONLU CHECKLIST + RAPOR AKTİF")
     app.run_polling()
 
 if __name__ == "__main__":
