@@ -115,6 +115,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # TEST JOB
 # ==============================
 
+async def kimim(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    await update.message.reply_text(
+        f"İsim: {user.first_name}\nID: {user.id}"
+    )
 async def test_job(context: ContextTypes.DEFAULT_TYPE):
     await send_checklist(context, "TEST CHECK")
 
