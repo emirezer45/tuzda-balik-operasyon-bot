@@ -18,12 +18,14 @@ from telegram.ext import (
 # AYARLAR
 # ==============================
 
-
 import os
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
 TOKEN = os.getenv("7729207035:AAHbjzutiw3hiNRbWKlZghg9Ta57Xpw0rzM")
 
 app = Application.builder().token(TOKEN).build()
+
 CHAT_ID = -5143299793
 OWNER_ID = 1753344846  # BURAYA KENDİ ID'ni YAZ
 
