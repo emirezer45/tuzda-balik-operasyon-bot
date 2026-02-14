@@ -1,53 +1,42 @@
 import logging
 from datetime import time
-from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-TOKEN = "BURAYA_BOT_TOKENİNİ_YAZ"
+TOKEN = "BURAYA_TOKEN"
 GROUP_ID = -5143299793
 
 logging.basicConfig(level=logging.INFO)
 
-# ---------------- CHECKLIST MESAJLARI ---------------- #
+# CHECKLISTLER
 
 async def checklist_12(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=GROUP_ID, text="🕛 12:00 AÇILIŞ CHECKLIST\n- Işıklar açık mı?\n- Sistemler aktif mi?\n- Personel hazır mı?")
+    await context.bot.send_message(GROUP_ID, "🕛 12:00 Açılış Checklist")
 
 async def checklist_14(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=GROUP_ID, text="🕑 14:00 KASA CHECKLIST\n- Nakit kontrol edildi mi?\n- POS çalışıyor mu?")
+    await context.bot.send_message(GROUP_ID, "🕑 14:00 Kasa Checklist")
 
 async def checklist_15(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=GROUP_ID, text="🧹 15:00 TEMİZLİK CHECKLIST\n- Masa düzeni kontrol edildi mi?\n- WC temiz mi?")
+    await context.bot.send_message(GROUP_ID, "🧹 15:00 Temizlik Checklist")
 
 async def checklist_19(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=GROUP_ID, text="🍽 19:00 SERVİS CHECKLIST\n- Rezervasyonlar hazır mı?\n- Mutfak hazır mı?")
+    await context.bot.send_message(GROUP_ID, "🍽 19:00 Servis Checklist")
 
 async def checklist_23(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=GROUP_ID, text="🔒 23:00 KASA KONTROL\n- Gün sonu alındı mı?\n- Kasa kapandı mı?")
+    await context.bot.send_message(GROUP_ID, "🔒 23:00 Kasa Kontrol Checklist")
 
-# ---------------- KOMUT ---------------- #
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🤖 Restoran Yönetim Botu Aktif!")
-
-# ---------------- ZAMANLAYICI ---------------- #
-
-async def setup_jobs(app: Application):
-
-    app.job_queue.run_daily(checklist_12, time=time(hour=12, minute=0))
-    app.job_queue.run_daily(checklist_14, time=time(hour=14, minute=0))
-    app.job_queue.run_daily(checklist_15, time=time(hour=15, minute=0))
-    app.job_queue.run_daily(checklist_19, time=time(hour=19, minute=0))
-    app.job_queue.run_daily(checklist_23, time=time(hour=23, minute=0))
-
-# ---------------- MAIN ---------------- #
+async def start(update, context):
+    await update.message.reply_text("Bot Aktif ✅")
 
 async def main():
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
 
-    await setup_jobs(app)
+    app.job_queue.run_daily(checklist_12, time=time(12, 0))
+    app.job_queue.run_daily(checklist_14, time=time(14, 0))
+    app.job_queue.run_daily(checklist_15, time=time(15, 0))
+    app.job_queue.run_daily(checklist_19, time=time(19, 0))
+    app.job_queue.run_daily(checklist_23, time=time(23, 0))
 
     await app.run_polling()
 
