@@ -18,3 +18,6 @@ while True:
     except Exception as e:
         print("Hata:", e)
         time.sleep(5)
+@bot.message_handler(func=lambda message: True)
+def grup_id_goster(message):
+    print("CHAT ID:", message.chat.id)
