@@ -20,7 +20,7 @@ from telegram.ext import (
 
 import os
 
-TOKEN ="7729207035:AAHjJLA39b8f-yEn9nho5Ck60UZs0z1flI8"
+TOKEN ="7729207035:AAGQLgaJA-nC5yL7E529lEEcX8d2fVR_6hc"
 
 app = ApplicationBuilder().token(TOKEN).build()
 app.run_polling()
