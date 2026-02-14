@@ -2,7 +2,7 @@ import logging
 from datetime import time
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-TOKEN = "7729207035:AAFRP5g5N5QnfuGC-lGz0oa96GVhNqBpukw"
+TOKEN = "7729207035:AAHbjzutiw3hiNRbWKlZghg9Ta57Xpw0rzM"
 GROUP_ID = -5143299793
 
 logging.basicConfig(level=logging.INFO)
