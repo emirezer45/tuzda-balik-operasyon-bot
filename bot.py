@@ -1,67 +1,79 @@
 import logging
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import JobQueue
 from datetime import time
-from telegram.ext import Application, CommandHandler, ContextTypes
+
+# LOG AYARI
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
 
 TOKEN = "7729207035:AAHXP6Nb6PLOhnnQQfKqc7VS0z1g6_zwPM4"
-GROUP_ID = -5143299793
+GROUP_ID = -5143299793  # Senin grup ID
 
-logging.basicConfig(level=logging.INFO)
+# ---------------- KOMUTLAR ---------------- #
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logging.info("START komutu çalıştı")
+    await update.message.reply_text("Bot Aktif ✅")
 
 async def checklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logging.info("CHECKLIST komutu çalıştı")
     await update.message.reply_text(
         "📋 Günlük Checklist Saatleri:\n\n"
-        "🕛 12:00 - Açılış Checklist\n"
-        "🕑 14:00 - Kasa Checklist\n"
-        "🕒 15:00 - Temizlik Checklist\n"
-        "🕖 19:00 - Servis Kontörlü Checklist\n"
-        "🕚 23:00 - Kasa Kontrol Checklist"
-    )
-# CHECKLISTLER
-
-async def checklist_12(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(GROUP_ID, "🕛 12:00 Açılış Checklist")
-
-async def checklist_14(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(GROUP_ID, "🕑 14:00 Kasa Checklist")
-
-async def checklist_15(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(GROUP_ID, "🧹 15:00 Temizlik Checklist")
-
-async def checklist_19(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(GROUP_ID, "🍽 19:00 Servis Checklist")
-
-async def checklist_23(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(GROUP_ID, "🔒 23:00 Kasa Kontrol Checklist")
-
-async def durum(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📊 Bot Durum Raporu\n\n"
-        "✅ Bot Aktif\n"
-        "✅ Otomatik Checklist Sistemi Aktif\n"
-        "📍 Grup ID: -5143299793\n\n"
-        "⏰ Günlük Saatler:\n"
         "12:00 Açılış\n"
         "14:00 Kasa\n"
         "15:00 Temizlik\n"
         "19:00 Servis Kontör\n"
         "23:00 Kasa Kontrol"
     )
-async def start(update, context):
-    await update.message.reply_text("Bot Aktif ✅")
 
-app.add_handler(CommandHandler("checklist", checklist))
-app.add_handler(CommandHandler("durum", durum))
+async def durum(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logging.info("DURUM komutu çalıştı")
+    await update.message.reply_text("Bot aktif ve scheduler çalışıyor ✅")
+
+# ---------------- OTOMATİK MESAJLAR ---------------- #
+
+async def checklist_12(context: ContextTypes.DEFAULT_TYPE):
+    logging.info("12 checklist gönderildi")
+    await context.bot.send_message(chat_id=GROUP_ID, text="🕛 12:00 Açılış Checklist")
+
+async def checklist_14(context: ContextTypes.DEFAULT_TYPE):
+    logging.info("14 checklist gönderildi")
+    await context.bot.send_message(chat_id=GROUP_ID, text="🕑 14:00 Kasa Checklist")
+
+async def checklist_15(context: ContextTypes.DEFAULT_TYPE):
+    logging.info("15 checklist gönderildi")
+    await context.bot.send_message(chat_id=GROUP_ID, text="🕒 15:00 Temizlik Checklist")
+
+async def checklist_19(context: ContextTypes.DEFAULT_TYPE):
+    logging.info("19 checklist gönderildi")
+    await context.bot.send_message(chat_id=GROUP_ID, text="🕖 19:00 Servis Kontör Checklist")
+
+async def checklist_23(context: ContextTypes.DEFAULT_TYPE):
+    logging.info("23 checklist gönderildi")
+    await context.bot.send_message(chat_id=GROUP_ID, text="🕚 23:00 Kasa Kontrol Checklist")
+
+# ---------------- MAIN ---------------- #
+
 def main():
-    app = Application.builder().token(TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("checklist", checklist))
+    app.add_handler(CommandHandler("durum", durum))
 
-    app.job_queue.run_daily(checklist_12, time=time(12, 0))
-    app.job_queue.run_daily(checklist_14, time=time(14, 0))
-    app.job_queue.run_daily(checklist_15, time=time(15, 0))
-    app.job_queue.run_daily(checklist_19, time=time(19, 0))
-    app.job_queue.run_daily(checklist_23, time=time(23, 0))
+    job_queue: JobQueue = app.job_queue
 
+    job_queue.run_daily(checklist_12, time(hour=12, minute=0))
+    job_queue.run_daily(checklist_14, time(hour=14, minute=0))
+    job_queue.run_daily(checklist_15, time(hour=15, minute=0))
+    job_queue.run_daily(checklist_19, time(hour=19, minute=0))
+    job_queue.run_daily(checklist_23, time(hour=23, minute=0))
+
+    logging.info("BOT BAŞLATILDI")
     app.run_polling()
 
 if __name__ == "__main__":
