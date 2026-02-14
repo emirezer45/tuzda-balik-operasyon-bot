@@ -18,7 +18,7 @@ from telegram.ext import (
 
 # ================== AYARLAR ==================
 
-TOKEN = "BOT_TOKENİNİ_BURAYA_YAZ"
+TOKEN = "7729207035:AAHXP6Nb6PLOhnnQQfKqc7VS0z1g6_zwPM4"
 GROUP_ID = -5143299793
 ADMIN_IDS = [1753344846]
 
