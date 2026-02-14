@@ -1,5 +1,5 @@
 import logging
-from datetime import time
+from datetime import time, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from telegram import (
@@ -14,8 +14,13 @@ from telegram.ext import (
     ContextTypes,
 )
 
-TOKEN = "7729207035:AAHXP6Nb6PLOhnnQQfKqc7VS0z1g6_zwPM4"
+# ==============================
+# AYARLAR
+# ==============================
+
+TOKEN = "7729207035:AAHbjzutiw3hiNRbWKlZghg9Ta57Xpw0rzM"
 CHAT_ID = -5143299793
+OWNER_ID = 1753344846  # BURAYA KENDİ ID'ni YAZ
 
 CHECK_ITEMS = [
     "Personel hazır mı?",
@@ -28,7 +33,7 @@ CHECK_ITEMS = [
 logging.basicConfig(level=logging.INFO)
 
 # ==============================
-# CHECKLIST GÖNDER
+# CHECKLIST
 # ==============================
 
 async def send_checklist(context: ContextTypes.DEFAULT_TYPE, title: str):
@@ -48,16 +53,11 @@ async def send_checklist(context: ContextTypes.DEFAULT_TYPE, title: str):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-# ==============================
-# BUTON SİSTEMİ
-# ==============================
-
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     data = query.data
-
     if not data.startswith("check_"):
         return
 
@@ -66,13 +66,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     state = context.bot_data.get("checklist_state", {})
 
-    # Eğer zaten işaretlendiyse tekrar işlem yapma
     if state.get(index) is not None:
         return
 
     state[index] = user
 
-    # Yeni klavye oluştur
     keyboard = []
     completed = 0
 
@@ -105,23 +103,96 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # ==============================
-# START
+# HATIRLATMA SİSTEMİ
 # ==============================
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🚀 PROFESYONEL BOT AKTİF 🇹🇷")
-
-# ==============================
-# TEST JOB
-# ==============================
-
-async def kimim(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    await update.message.reply_text(
-        f"İsim: {user.first_name}\nID: {user.id}"
+async def hatirlat(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    await context.bot.send_message(
+        chat_id=CHAT_ID,
+        text=f"⏰ HATIRLATMA\n\n{job.data}"
     )
-async def test_job(context: ContextTypes.DEFAULT_TYPE):
-    await send_checklist(context, "TEST CHECK")
+
+def zaman_hesapla(saat_str):
+    now = datetime.now()
+    hedef = datetime.strptime(saat_str, "%H:%M").replace(
+        year=now.year,
+        month=now.month,
+        day=now.day
+    )
+    if hedef < now:
+        hedef += timedelta(days=1)
+    return (hedef - now).total_seconds()
+
+# ==============================
+# SADECE OWNER KOMUTLAR
+# ==============================
+
+def yetki_kontrol(update: Update):
+    return (
+        update.effective_user.id == OWNER_ID
+        and update.effective_chat.type == "private"
+    )
+
+async def alarm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not yetki_kontrol(update):
+        return
+    try:
+        saat = context.args[0]
+        mesaj = " ".join(context.args[1:])
+        context.job_queue.run_once(
+            hatirlat,
+            zaman_hesapla(saat),
+            data=f"🔔 Alarm: {mesaj}"
+        )
+        await update.message.reply_text("✅ Alarm kuruldu.")
+    except:
+        await update.message.reply_text("❌ Format: /alarm 15:30 Mesaj")
+
+async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not yetki_kontrol(update):
+        return
+    try:
+        saat = context.args[0]
+        mesaj = " ".join(context.args[1:])
+        context.job_queue.run_once(
+            hatirlat,
+            zaman_hesapla(saat),
+            data=f"🏦 Banka Ödemesi: {mesaj}"
+        )
+        await update.message.reply_text("✅ Ödeme hatırlatması kuruldu.")
+    except:
+        await update.message.reply_text("❌ Format: /odeme 18:00 Açıklama")
+
+async def fatura(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not yetki_kontrol(update):
+        return
+    try:
+        saat = context.args[0]
+        mesaj = " ".join(context.args[1:])
+        context.job_queue.run_once(
+            hatirlat,
+            zaman_hesapla(saat),
+            data=f"🧾 Fatura: {mesaj}"
+        )
+        await update.message.reply_text("✅ Fatura hatırlatması kuruldu.")
+    except:
+        await update.message.reply_text("❌ Format: /fatura 20:00 Açıklama")
+
+async def rezervasyon(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not yetki_kontrol(update):
+        return
+    try:
+        saat = context.args[0]
+        mesaj = " ".join(context.args[1:])
+        context.job_queue.run_once(
+            hatirlat,
+            zaman_hesapla(saat),
+            data=f"🍽 Rezervasyon: {mesaj}"
+        )
+        await update.message.reply_text("✅ Rezervasyon kuruldu.")
+    except:
+        await update.message.reply_text("❌ Format: /rez 19:30 Açıklama")
 
 # ==============================
 # MAIN
@@ -130,41 +201,22 @@ async def test_job(context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button))
 
-    job_queue = app.job_queue
-
-    job_queue.run_once(test_job, 10)
+    app.add_handler(CommandHandler("alarm", alarm))
+    app.add_handler(CommandHandler("odeme", odeme))
+    app.add_handler(CommandHandler("fatura", fatura))
+    app.add_handler(CommandHandler("rez", rezervasyon))
 
     tz = ZoneInfo("Europe/Istanbul")
+    job_queue = app.job_queue
 
     job_queue.run_daily(
         lambda c: send_checklist(c, "12:00 Açılış Checklist"),
         time(12, 0, tzinfo=tz),
     )
 
-    job_queue.run_daily(
-        lambda c: send_checklist(c, "14:00 Kasa Checklist"),
-        time(14, 0, tzinfo=tz),
-    )
-
-    job_queue.run_daily(
-        lambda c: send_checklist(c, "15:00 Temizlik Checklist"),
-        time(15, 0, tzinfo=tz),
-    )
-
-    job_queue.run_daily(
-        lambda c: send_checklist(c, "19:00 Servis Kontrol Checklist"),
-        time(19, 0, tzinfo=tz),
-    )
-
-    job_queue.run_daily(
-        lambda c: send_checklist(c, "23:00 Kasa Kontrol Checklist"),
-        time(23, 0, tzinfo=tz),
-    )
-
-    print("🚀 PROFESYONEL RESTORAN BOT BAŞLATILDI 🇹🇷")
+    print("🚀 YÖNETİCİ KİLİTLİ BOT BAŞLATILDI 🇹🇷")
 
     app.run_polling()
 
