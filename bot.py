@@ -127,6 +127,10 @@ def main():
 
     app = ApplicationBuilder().token(TOKEN).build()
 
+app.bot.delete_webhook(drop_pending_updates=True)
+
+app.run_polling()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("durum", durum))
     app.add_handler(CommandHandler("duyuru", duyuru))
