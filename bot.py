@@ -1,18 +1,27 @@
-from zoneinfo import ZoneInfo
+import os
 import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from telegram.ext import JobQueue
+from zoneinfo import ZoneInfo
 from datetime import time
 
-# LOG AYARI
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+)
+
+# ---------------- LOG AYARI ---------------- #
+
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 
-TOKEN = "7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I"
-GROUP_ID = -5143299793  # Senin grup ID
+TOKEN = os.getenv("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")
+GROUP_ID = -5143299793  # Grup ID
+
+if not TOKEN:
+    raise ValueError("BOT_TOKEN bulunamadı!")
 
 # ---------------- KOMUTLAR ---------------- #
 
@@ -38,23 +47,18 @@ async def durum(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ---------------- OTOMATİK MESAJLAR ---------------- #
 
 async def checklist_12(context: ContextTypes.DEFAULT_TYPE):
-    logging.info("12 checklist gönderildi")
     await context.bot.send_message(chat_id=GROUP_ID, text="🕛 12:00 Açılış Checklist")
 
 async def checklist_14(context: ContextTypes.DEFAULT_TYPE):
-    logging.info("14 checklist gönderildi")
     await context.bot.send_message(chat_id=GROUP_ID, text="🕑 14:00 Kasa Checklist")
 
 async def checklist_15(context: ContextTypes.DEFAULT_TYPE):
-    logging.info("15 checklist gönderildi")
     await context.bot.send_message(chat_id=GROUP_ID, text="🕒 15:00 Temizlik Checklist")
 
 async def checklist_19(context: ContextTypes.DEFAULT_TYPE):
-    logging.info("19 checklist gönderildi")
     await context.bot.send_message(chat_id=GROUP_ID, text="🕖 19:00 Servis Kontör Checklist")
 
 async def checklist_23(context: ContextTypes.DEFAULT_TYPE):
-    logging.info("23 checklist gönderildi")
     await context.bot.send_message(chat_id=GROUP_ID, text="🕚 23:00 Kasa Kontrol Checklist")
 
 # ---------------- MAIN ---------------- #
@@ -62,20 +66,21 @@ async def checklist_23(context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # Komutlar
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("checklist", checklist))
     app.add_handler(CommandHandler("durum", durum))
 
+    # Scheduler
     tz = ZoneInfo("Europe/Istanbul")
+    job_queue = app.job_queue
 
-job_queue.run_daily(checklist_12, time(hour=12, minute=0, tzinfo=tz))
-job_queue.run_daily(checklist_14, time(hour=14, minute=0, tzinfo=tz))
-job_queue.run_daily(checklist_15, time(hour=15, minute=0, tzinfo=tz))
-job_queue.run_daily(checklist_19, time(hour=19, minute=0, tzinfo=tz))
-job_queue.run_daily(checklist_23, time(hour=23, minute=0, tzinfo=tz))
+    job_queue.run_daily(checklist_12, time(hour=12, minute=0, tzinfo=tz))
+    job_queue.run_daily(checklist_14, time(hour=14, minute=0, tzinfo=tz))
+    job_queue.run_daily(checklist_15, time(hour=15, minute=0, tzinfo=tz))
+    job_queue.run_daily(checklist_19, time(hour=19, minute=0, tzinfo=tz))
+    job_queue.run_daily(checklist_23, time(hour=23, minute=0, tzinfo=tz))
 
-    def main():
-    app = ApplicationBuilder().token(TOKEN).build()
     logging.info("BOT BAŞLATILDI")
     app.run_polling()
 
