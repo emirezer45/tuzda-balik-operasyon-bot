@@ -148,3 +148,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+job_queue.run_once(lambda c: send_checklist(c, "TEST"), 5)
