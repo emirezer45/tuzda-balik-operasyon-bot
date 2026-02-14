@@ -7,6 +7,15 @@ GROUP_ID = -5143299793
 
 logging.basicConfig(level=logging.INFO)
 
+async def checklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📋 Günlük Checklist Saatleri:\n\n"
+        "🕛 12:00 - Açılış Checklist\n"
+        "🕑 14:00 - Kasa Checklist\n"
+        "🕒 15:00 - Temizlik Checklist\n"
+        "🕖 19:00 - Servis Kontörlü Checklist\n"
+        "🕚 23:00 - Kasa Kontrol Checklist"
+    )
 # CHECKLISTLER
 
 async def checklist_12(context: ContextTypes.DEFAULT_TYPE):
@@ -24,9 +33,24 @@ async def checklist_19(context: ContextTypes.DEFAULT_TYPE):
 async def checklist_23(context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(GROUP_ID, "🔒 23:00 Kasa Kontrol Checklist")
 
+async def durum(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📊 Bot Durum Raporu\n\n"
+        "✅ Bot Aktif\n"
+        "✅ Otomatik Checklist Sistemi Aktif\n"
+        "📍 Grup ID: -5143299793\n\n"
+        "⏰ Günlük Saatler:\n"
+        "12:00 Açılış\n"
+        "14:00 Kasa\n"
+        "15:00 Temizlik\n"
+        "19:00 Servis Kontör\n"
+        "23:00 Kasa Kontrol"
+    )
 async def start(update, context):
     await update.message.reply_text("Bot Aktif ✅")
 
+app.add_handler(CommandHandler("checklist", checklist))
+app.add_handler(CommandHandler("durum", durum))
 def main():
     app = Application.builder().token(TOKEN).build()
 
