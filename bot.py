@@ -128,7 +128,7 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
 app.bot.delete_webhook(drop_pending_updates=True)
-
+job_queue.run_once(lambda c: send_checklist(c, "TEST"), 5)
 app.run_polling()
 
     app.add_handler(CommandHandler("start", start))
@@ -152,4 +152,3 @@ app.run_polling()
 
 if __name__ == "__main__":
     main()
-job_queue.run_once(lambda c: send_checklist(c, "TEST"), 5)
