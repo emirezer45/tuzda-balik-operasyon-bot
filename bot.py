@@ -1,3 +1,4 @@
+from zoneinfo import ZoneInfo
 import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
@@ -65,13 +66,13 @@ def main():
     app.add_handler(CommandHandler("checklist", checklist))
     app.add_handler(CommandHandler("durum", durum))
 
-    job_queue: JobQueue = app.job_queue
+    tz = ZoneInfo("Europe/Istanbul")
 
-    job_queue.run_daily(checklist_12, time(hour=12, minute=0))
-    job_queue.run_daily(checklist_14, time(hour=14, minute=0))
-    job_queue.run_daily(checklist_15, time(hour=15, minute=0))
-    job_queue.run_daily(checklist_19, time(hour=19, minute=0))
-    job_queue.run_daily(checklist_23, time(hour=23, minute=0))
+job_queue.run_daily(checklist_12, time(hour=12, minute=0, tzinfo=tz))
+job_queue.run_daily(checklist_14, time(hour=14, minute=0, tzinfo=tz))
+job_queue.run_daily(checklist_15, time(hour=15, minute=0, tzinfo=tz))
+job_queue.run_daily(checklist_19, time(hour=19, minute=0, tzinfo=tz))
+job_queue.run_daily(checklist_23, time(hour=23, minute=0, tzinfo=tz))
 
     logging.info("BOT BAŞLATILDI")
     app.run_polling()
