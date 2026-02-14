@@ -16,8 +16,7 @@ from telegram.ext import (
 # ==============================
 import os
 
-TOKEN = 
-os.getenv("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")
+TOKEN=os.getenv("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")
 
 print("ENV TOKEN:", repr(TOKEN))  # test için
 
