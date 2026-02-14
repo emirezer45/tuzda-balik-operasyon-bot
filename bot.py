@@ -22,7 +22,7 @@ import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-TOKEN = os.getenv("7729207035:AAHbjzutiw3hiNRbWKlZghg9Ta57Xpw0rzM")
+TOKEN = os.getenv("7729207035:AAHgaa3LzvETQ2k5Of_QPXdvZOR2-vUNh0o")
 
 if not TOKEN:
     raise ValueError("BOT_TOKEN environment variable is not set!")
