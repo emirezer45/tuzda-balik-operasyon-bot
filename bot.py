@@ -9,7 +9,8 @@ from telegram.ext import (
 )
 
 TOKEN = "7729207035:AAHongvrXncUYv5lih9EnUk7URq_UQTle6I"
-GROUP_ID = -51432299793
+GROUP_ID = -10051432299793
+
 MUDUR_ID = 1753344846
 
 TZ = ZoneInfo("Europe/Istanbul")
