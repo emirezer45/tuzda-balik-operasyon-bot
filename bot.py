@@ -68,6 +68,8 @@ def is_private(update: Update) -> bool:
     return bool(update.effective_chat and update.effective_chat.type == "private")
 
 # ---- Güvenli gönderim: hata olursa özelden yaz ----
+async def grupid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(f"Grup ID: {update.effective_chat.id}")
 async def safe_send_to_group(context: ContextTypes.DEFAULT_TYPE, user_chat_id: int, text: str):
     try:
         await context.bot.send_message(chat_id=GROUP_ID, text=text)
@@ -237,7 +239,6 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🔄 Ödeme hatırlatmalar temizlendi. (Silinen: {removed})")
 
 def main():
-    app = Application.builder().token(TOKEN).build()
     job_queue = app.job_queue
 
     # Otomatik günlük checklistler
@@ -253,7 +254,8 @@ def main():
     job_queue.run_daily(siparis_job, time(11, 0, tzinfo=TZ), days=(2,), data="🥃 Çarşamba - Rakıcı Siparişi", name="sip_rakici")
 
     # Komutlar
-    app.add_handler(CommandHandler("start", start))
+   app.add_handler(CommandHandler("grupid", grupid))
+ app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("panel", panel))
     app.add_handler(CommandHandler("id", id))
     app.add_handler(CommandHandler("testgrup", testgrup))
