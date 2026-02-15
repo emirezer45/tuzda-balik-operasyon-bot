@@ -1,18 +1,66 @@
+import json
+import os
 from zoneinfo import ZoneInfo
 from datetime import time
 
 from telegram import Update
+from telegram.constants import ChatType
 from telegram.ext import (
     Application,
     CommandHandler,
     ContextTypes,
+    MessageHandler,
+    filters,
 )
 
 TOKEN = "7729207035:AAHongvrXncUYv5lih9EnUk7URq_UQTle6I"
-GROUP_ID = -10051432299793
 MUDUR_ID = 1753344846
-
 TZ = ZoneInfo("Europe/Istanbul")
+
+CONFIG_FILE = "group_config.json"
+
+
+# ----------------- CONFIG -----------------
+
+def load_group_id() -> int | None:
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            gid = data.get("group_id")
+            return int(gid) if gid is not None else None
+    except Exception:
+        return None
+
+
+def save_group_id(group_id: int) -> None:
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump({"group_id": int(group_id)}, f, ensure_ascii=False, indent=2)
+
+
+def is_private(update: Update) -> bool:
+    return bool(update.effective_chat and update.effective_chat.type == "private")
+
+
+async def safe_send_to_saved_group(context: ContextTypes.DEFAULT_TYPE, user_chat_id: int, text: str):
+    group_id = load_group_id()
+    if not group_id:
+        await context.bot.send_message(
+            chat_id=user_chat_id,
+            text="❌ Kayıtlı grup yok.\nBotu gruba ekle veya grupta /setgroup yaz."
+        )
+        return False
+
+    try:
+        await context.bot.send_message(chat_id=group_id, text=text)
+        return True
+    except Exception as e:
+        await context.bot.send_message(chat_id=user_chat_id, text=f"❌ Gruba gönderemedim.\nHata: {e}")
+        return False
+
+
+# =========================
+# CHECKLISTLER
+# =========================
 
 checklists = {
     "12": """🕛 12:00 Açılış Kontrolü
@@ -64,42 +112,51 @@ SIPARIS_MESAJ = {
     "rakici": "🥃 Rakıcı Siparişi (Manuel)",
 }
 
-def is_private(update: Update) -> bool:
-    return bool(update.effective_chat and update.effective_chat.type == "private")
-
-# ---- Güvenli gönderim: hata olursa özelden yaz ----
-async def grupid(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"Grup ID: {update.effective_chat.id}")
-async def safe_send_to_group(context: ContextTypes.DEFAULT_TYPE, user_chat_id: int, text: str):
-    try:
-        await context.bot.send_message(chat_id=GROUP_ID, text=text)
-        return True, None
-    except Exception as e:
-        # hatayı kullanıcıya dm at
-        try:
-            await context.bot.send_message(chat_id=user_chat_id, text=f"❌ Gruba gönderemedim.\nHata: {e}")
-        except:
-            pass
-        return False, str(e)
 
 # =========================
-# JOB FONKSİYONLARI
+# GRUP KAYDETME
 # =========================
 
-async def checklist_job(context: ContextTypes.DEFAULT_TYPE):
-    key = context.job.data
-    await context.bot.send_message(chat_id=GROUP_ID, text=checklists[key])
+async def on_any_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Bot gruba eklendiğinde ya da grupta ilk mesajı gördüğünde grup ID'yi kaydeder.
+    """
+    chat = update.effective_chat
+    if not chat:
+        return
 
-async def siparis_job(context: ContextTypes.DEFAULT_TYPE):
-    mesaj = context.job.data
-    await context.bot.send_message(chat_id=GROUP_ID, text=mesaj)
+    if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+        current = load_group_id()
+        if current != chat.id:
+            save_group_id(chat.id)
+            await context.bot.send_message(
+                chat_id=chat.id,
+                text="✅ Bu grup kaydedildi.\nArtık özelden yazdığın komutların çıktısı buraya düşecek."
+            )
 
-async def odeme_job(context: ContextTypes.DEFAULT_TYPE):
-    mesaj = context.job.data
-    await context.bot.send_message(chat_id=GROUP_ID, text=f"🔔 ÖDEME ZAMANI\n\n💳 {mesaj}")
+
+async def setgroup(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Grupta yazılırsa kesin olarak o grubu kaydeder.
+    Sadece müdür kullanabilir (istersen kaldırırım).
+    """
+    chat = update.effective_chat
+    if not chat:
+        return
+
+    if update.effective_user.id != MUDUR_ID:
+        return
+
+    if chat.type not in (ChatType.GROUP, ChatType.SUPERGROUP):
+        await update.message.reply_text("Bu komut grupta kullanılmalı.")
+        return
+
+    save_group_id(chat.id)
+    await update.message.reply_text("✅ Grup kaydedildi.")
+
 
 # =========================
-# KOMUTLAR (SADECE ÖZELDEN)
+# KOMUTLAR
 # =========================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -107,48 +164,46 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text("🤖 Operasyon Bot Aktif ✅\nKomutlar için /panel")
 
+
 async def panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_private(update):
         return
+    gid = load_group_id()
     await update.message.reply_text(
         "📌 TÜM KOMUTLAR\n\n"
         "/start → Botu başlat\n"
-        "/panel → Komut listesini göster\n"
-        "/id → ID'leri göster\n"
-        "/testgrup → Gruba mesaj testi\n\n"
+        "/panel → Komut listesi\n"
+        "/id → ID bilgileri\n"
+        "/testgrup → Gruba test mesajı\n\n"
         "MANUEL CHECKLIST:\n"
         "/c12 /c14 /c17 /c20 /c23\n\n"
         "MANUEL SİPARİŞ:\n"
         "/kolaci /biraci /rakici\n\n"
         "ÖDEME:\n"
         "/odeme 25 Kredi Kartı\n\n"
-        "YÖNETİCİ:\n"
-        "/reset (Sadece Müdür)"
+        f"✅ Kayıtlı Grup ID: {gid if gid else 'YOK'}\n"
+        "Grup kaydetmek için botu gruba ekle veya grupta /setgroup yaz."
     )
 
-async def id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_private(update):
         return
     await update.message.reply_text(
         f"🆔 ID Bilgileri\n\n"
         f"👤 User ID: {update.effective_user.id}\n"
         f"💬 Bu chat ID: {update.effective_chat.id}\n"
-        f"👥 Grup ID (ayar): {GROUP_ID}\n"
+        f"👥 Kayıtlı Grup ID: {load_group_id()}\n"
     )
 
-# >>> TEŞHİS KOMUTU
+
 async def testgrup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_private(update):
         return
-    ok, err = await safe_send_to_group(
-        context,
-        user_chat_id=update.effective_chat.id,
-        text="✅ Test: Bot gruba mesaj atabiliyor."
-    )
+    ok = await safe_send_to_saved_group(context, update.effective_chat.id, "✅ Test: Bot gruba mesaj atabiliyor.")
     if ok:
         await update.message.reply_text("✅ Test başarılı: Mesaj gruba gitti.")
-    else:
-        await update.message.reply_text("❌ Test başarısız. Hata mesajını yukarıda attım.")
+
 
 async def manual_checklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_private(update):
@@ -158,12 +213,12 @@ async def manual_checklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mapping = {"c12": "12", "c14": "14", "c17": "17", "c20": "20", "c23": "23"}
     key = mapping.get(cmd)
     if not key:
-        await update.message.reply_text("Geçersiz komut.")
         return
 
-    ok, _ = await safe_send_to_group(context, update.effective_chat.id, checklists[key])
+    ok = await safe_send_to_saved_group(context, update.effective_chat.id, checklists[key])
     if ok:
         await update.message.reply_text(f"✅ {key}:00 checklist gruba gönderildi.")
+
 
 async def manual_siparis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_private(update):
@@ -171,12 +226,12 @@ async def manual_siparis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     cmd = update.message.text.lstrip("/").split("@")[0].lower()
     if cmd not in SIPARIS_MESAJ:
-        await update.message.reply_text("Geçersiz sipariş komutu.")
         return
 
-    ok, _ = await safe_send_to_group(context, update.effective_chat.id, SIPARIS_MESAJ[cmd])
+    ok = await safe_send_to_saved_group(context, update.effective_chat.id, SIPARIS_MESAJ[cmd])
     if ok:
         await update.message.reply_text("✅ Sipariş mesajı gruba gönderildi.")
+
 
 async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_private(update):
@@ -202,6 +257,7 @@ async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     job_name = f"odeme_{gun}"
+
     for j in context.job_queue.jobs():
         if j.name == job_name:
             j.schedule_removal()
@@ -214,18 +270,24 @@ async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
         name=job_name
     )
 
-    await safe_send_to_group(
+    await safe_send_to_saved_group(
         context,
         update.effective_chat.id,
         f"📝 YENİ ÖDEME PLANLANDI\n\n📅 Her ayın {gun}. günü\n🕒 10:00 (TR)\n💳 {aciklama}"
     )
-
     await update.message.reply_text(f"✅ Ödeme hatırlatma kuruldu. (Her ay {gun} - 10:00 TR)")
+
+
+async def odeme_job(context: ContextTypes.DEFAULT_TYPE):
+    mesaj = context.job.data
+    group_id = load_group_id()
+    if group_id:
+        await context.bot.send_message(chat_id=group_id, text=f"🔔 ÖDEME ZAMANI\n\n💳 {mesaj}")
+
 
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_private(update):
         return
-
     if update.effective_user.id != MUDUR_ID:
         await update.message.reply_text("⛔ Bu komutu sadece müdür kullanabilir.")
         return
@@ -238,7 +300,31 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"🔄 Ödeme hatırlatmalar temizlendi. (Silinen: {removed})")
 
+
+# =========================
+# JOBS
+# =========================
+
+async def checklist_job(context: ContextTypes.DEFAULT_TYPE):
+    key = context.job.data
+    group_id = load_group_id()
+    if group_id:
+        await context.bot.send_message(chat_id=group_id, text=checklists[key])
+
+
+async def siparis_job(context: ContextTypes.DEFAULT_TYPE):
+    mesaj = context.job.data
+    group_id = load_group_id()
+    if group_id:
+        await context.bot.send_message(chat_id=group_id, text=mesaj)
+
+
+# =========================
+# MAIN
+# =========================
+
 def main():
+    app = Application.builder().token(TOKEN).build()
     job_queue = app.job_queue
 
     # Otomatik günlük checklistler
@@ -254,15 +340,19 @@ def main():
     job_queue.run_daily(siparis_job, time(11, 0, tzinfo=TZ), days=(2,), data="🥃 Çarşamba - Rakıcı Siparişi", name="sip_rakici")
 
     # Komutlar
-   app.add_handler(CommandHandler("grupid", grupid))
- app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("panel", panel))
-    app.add_handler(CommandHandler("id", id))
+    app.add_handler(CommandHandler("id", id_cmd))
     app.add_handler(CommandHandler("testgrup", testgrup))
     app.add_handler(CommandHandler("odeme", odeme))
     app.add_handler(CommandHandler("reset", reset))
+
+    app.add_handler(CommandHandler("setgroup", setgroup))
     app.add_handler(CommandHandler(["c12", "c14", "c17", "c20", "c23"], manual_checklist))
     app.add_handler(CommandHandler(["kolaci", "biraci", "rakici"], manual_siparis))
+
+    # Grup ID otomatik yakalama (gruptaki herhangi bir mesajı görünce kaydeder)
+    app.add_handler(MessageHandler(filters.ChatType.GROUPS, on_any_group_message))
 
     app.run_polling()
 
