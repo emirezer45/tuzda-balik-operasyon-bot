@@ -1,5 +1,6 @@
 from zoneinfo import ZoneInfo
-from datetime import time
+from datetime import time, datetime
+
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -7,14 +8,14 @@ from telegram.ext import (
     ContextTypes,
 )
 
-TOKEN = "7729207035:AAHXVDxPv8MI5KS7Y7IWEnkxrlZ3IXRK8aw"
+TOKEN = "7729207035:AAHongvrXncUYv5lih9EnUk7URq_UQTle6I"
 GROUP_ID = -51432299793
 MUDUR_ID = 1753344846
 
 TZ = ZoneInfo("Europe/Istanbul")
 
 # =========================
-# CHECKLISTLER
+# CHECKLISTLER (GRUBA GİDER)
 # =========================
 
 checklists = {
@@ -25,7 +26,6 @@ checklists = {
 ▫️ Faturalar sisteme işlendi mi?
 ▫️ Temizlik kontrolü yapıldı mı?
 """,
-
     "14": """🕑 14:00 Kontrol
 
 ▫️ Eksikler sipariş edildi mi?
@@ -33,7 +33,6 @@ checklists = {
 ▫️ Faturalar sisteme işlendi mi?
 ▫️ Eksikler tamamlandı mı?
 """,
-
     "17": """🕔 17:00 Servis Öncesi
 
 ▫️ Son kontrol yapıldı mı?
@@ -42,7 +41,6 @@ checklists = {
 ▫️ Giderler yazıldı mı?
 ▫️ Şirket telefonu cevaplandı mı?
 """,
-
     "20": """🕗 20:00 Kontrol
 
 ▫️ Problem varsa bildirildi mi?
@@ -50,7 +48,6 @@ checklists = {
 ▫️ İşleyiş düzgün mü?
 ▫️ Kasa kontrol edildi mi?
 """,
-
     "23": """🕚 23:00 Gün Sonu
 
 ▫️ Paketler sisteme girildi mi?
@@ -65,78 +62,185 @@ checklists = {
 """
 }
 
+SIPARIS_MESAJ = {
+    "kolaci": "🥤 Kolacı Siparişi (Manuel)",
+    "biraci": "🍺 Biracı Siparişi (Manuel)",
+    "rakici": "🥃 Rakıcı Siparişi (Manuel)",
+}
+
 # =========================
-# GÖNDERME FONKSİYONU
+# YARDIMCI: sadece özelden
 # =========================
 
-async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE):
+def is_private(update: Update) -> bool:
+    return bool(update.effective_chat and update.effective_chat.type == "private")
+
+async def private_only_warn(update: Update, text: str = "Bu komut sadece özelden kullanılır."):
+    if update.message:
+        await update.message.reply_text(text)
+
+# =========================
+# OTOMATİK JOB FONKSİYONLARI
+# =========================
+
+async def checklist_job(context: ContextTypes.DEFAULT_TYPE):
     key = context.job.data
     await context.bot.send_message(chat_id=GROUP_ID, text=checklists[key])
 
-async def siparis_gonder(context: ContextTypes.DEFAULT_TYPE):
+async def siparis_job(context: ContextTypes.DEFAULT_TYPE):
     mesaj = context.job.data
     await context.bot.send_message(chat_id=GROUP_ID, text=mesaj)
 
-async def odeme_hatirlat(context: ContextTypes.DEFAULT_TYPE):
+async def odeme_job(context: ContextTypes.DEFAULT_TYPE):
     mesaj = context.job.data
-    await context.bot.send_message(chat_id=GROUP_ID, text=f"💰 ÖDEME HATIRLATMA\n\n{mesaj}")
+    await context.bot.send_message(chat_id=GROUP_ID, text=f"🔔 ÖDEME ZAMANI\n\n💳 {mesaj}")
 
 # =========================
-# PANEL KOMUTU
+# KOMUTLAR (SADECE ÖZELDEN)
 # =========================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_private(update):
+        return
+    await update.message.reply_text("🤖 Operasyon Bot Aktif ✅\nKomutlar için /panel")
 
 async def panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("""
-📌 BOT KOMUTLARI
+    if not is_private(update):
+        return
+    await update.message.reply_text(
+        "📌 TÜM KOMUTLAR\n\n"
+        "/start → Botu başlat\n"
+        "/panel → Komut listesini göster\n\n"
+        "MANUEL CHECKLIST (gruba gönderir):\n"
+        "/c12 /c14 /c17 /c20 /c23\n\n"
+        "MANUEL SİPARİŞ (gruba gönderir):\n"
+        "/kolaci /biraci /rakici\n\n"
+        "ÖDEME HATIRLATICI:\n"
+        "/odeme 25 Kredi Kartı → Her ayın 25'i 10:00\n\n"
+        "YÖNETİCİ:\n"
+        "/reset → (Sadece Müdür) ödeme hatırlatmalarını temizler"
+    )
 
-/odeme 25 Kredi Kartı → Aylık ödeme hatırlatma
-/panel → Komutları göster
-""")
+async def manual_checklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_private(update):
+        return
 
-# =========================
-# ÖDEME KOMUTU
-# =========================
+    cmd = update.message.text.lstrip("/").split("@")[0].lower()
+    mapping = {"c12": "12", "c14": "14", "c17": "17", "c20": "20", "c23": "23"}
+    key = mapping.get(cmd)
+    if not key:
+        await update.message.reply_text("Geçersiz komut.")
+        return
+
+    await context.bot.send_message(chat_id=GROUP_ID, text=checklists[key])
+    await update.message.reply_text(f"✅ {key}:00 checklist gruba gönderildi.")
+
+async def manual_siparis(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_private(update):
+        return
+
+    cmd = update.message.text.lstrip("/").split("@")[0].lower()
+    if cmd not in SIPARIS_MESAJ:
+        await update.message.reply_text("Geçersiz sipariş komutu.")
+        return
+
+    await context.bot.send_message(chat_id=GROUP_ID, text=SIPARIS_MESAJ[cmd])
+    await update.message.reply_text("✅ Sipariş mesajı gruba gönderildi.")
 
 async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_private(update):
+        return
+
     if len(context.args) < 2:
         await update.message.reply_text("Kullanım: /odeme 25 Kredi Kartı")
         return
 
-    gun = int(context.args[0])
-    aciklama = " ".join(context.args[1:])
+    try:
+        gun = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("Gün sayısı sayı olmalı. Örn: /odeme 25 Kredi Kartı")
+        return
+
+    # Ayların gün farkı yüzünden sorun yaşamamak için 1-28 güvenli aralık
+    if not (1 <= gun <= 28):
+        await update.message.reply_text("Gün 1 ile 28 arasında olmalı (ay farklarından dolayı).")
+        return
+
+    aciklama = " ".join(context.args[1:]).strip()
+    if not aciklama:
+        await update.message.reply_text("Açıklama yaz. Örn: /odeme 25 Kredi Kartı")
+        return
+
+    # Aynı gün için eski job varsa kaldır (odeme_25 gibi)
+    job_name = f"odeme_{gun}"
+    for j in context.job_queue.jobs():
+        if j.name == job_name:
+            j.schedule_removal()
 
     context.job_queue.run_monthly(
-        odeme_hatirlat,
-        when=time(10, 0, tzinfo=TZ),
+        odeme_job,
+        when=time(10, 0, tzinfo=TZ),  # Türkiye saati 10:00
         day=gun,
         data=aciklama,
-        name=f"odeme_{gun}"
+        name=job_name
     )
 
-    await update.message.reply_text("✅ Ödeme hatırlatma kuruldu.")
+    # Kurulduğu anda gruba bilgi mesajı
+    await context.bot.send_message(
+        chat_id=GROUP_ID,
+        text=f"📝 YENİ ÖDEME PLANLANDI\n\n📅 Her ayın {gun}. günü\n🕒 10:00 (TR)\n💳 {aciklama}"
+    )
+
+    await update.message.reply_text(f"✅ Ödeme hatırlatma kuruldu. (Her ay {gun} - 10:00 TR)")
+
+async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_private(update):
+        return
+
+    if update.effective_user.id != MUDUR_ID:
+        await update.message.reply_text("⛔ Bu komutu sadece müdür kullanabilir.")
+        return
+
+    removed = 0
+    for j in context.job_queue.jobs():
+        # sadece kullanıcı tanımlı ödeme joblarını sil
+        if j.name and j.name.startswith("odeme_"):
+            j.schedule_removal()
+            removed += 1
+
+    await update.message.reply_text(f"🔄 Ödeme hatırlatmalar temizlendi. (Silinen: {removed})")
 
 # =========================
-# BOT BAŞLAT
+# MAIN
 # =========================
 
 def main():
     app = Application.builder().token(TOKEN).build()
     job_queue = app.job_queue
 
-    # Günlük checklistler
-    job_queue.run_daily(checklist_gonder, time(12, 0, tzinfo=TZ), data="12")
-    job_queue.run_daily(checklist_gonder, time(14, 0, tzinfo=TZ), data="14")
-    job_queue.run_daily(checklist_gonder, time(17, 0, tzinfo=TZ), data="17")
-    job_queue.run_daily(checklist_gonder, time(20, 0, tzinfo=TZ), data="20")
-    job_queue.run_daily(checklist_gonder, time(23, 0, tzinfo=TZ), data="23")
+    # --- Otomatik günlük checklistler (TR saati)
+    job_queue.run_daily(checklist_job, time(12, 0, tzinfo=TZ), data="12", name="chk_12")
+    job_queue.run_daily(checklist_job, time(14, 0, tzinfo=TZ), data="14", name="chk_14")
+    job_queue.run_daily(checklist_job, time(17, 0, tzinfo=TZ), data="17", name="chk_17")
+    job_queue.run_daily(checklist_job, time(20, 0, tzinfo=TZ), data="20", name="chk_20")
+    job_queue.run_daily(checklist_job, time(23, 0, tzinfo=TZ), data="23", name="chk_23")
 
-    # Sipariş günleri
-    job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(6,), data="🥤 Pazar - Kolacı Siparişi")
-    job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(0,), data="🍺 Pazartesi - Biracı Siparişi")
-    job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(2,), data="🥃 Çarşamba - Rakıcı Siparişi")
+    # --- Otomatik sipariş günleri (TR saati)
+    job_queue.run_daily(siparis_job, time(11, 0, tzinfo=TZ), days=(6,), data="🥤 Pazar - Kolacı Siparişi", name="sip_kolaci")
+    job_queue.run_daily(siparis_job, time(11, 0, tzinfo=TZ), days=(0,), data="🍺 Pazartesi - Biracı Siparişi", name="sip_biraci")
+    job_queue.run_daily(siparis_job, time(11, 0, tzinfo=TZ), days=(2,), data="🥃 Çarşamba - Rakıcı Siparişi", name="sip_rakici")
 
+    # --- Komutlar
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("panel", panel))
     app.add_handler(CommandHandler("odeme", odeme))
+    app.add_handler(CommandHandler("reset", reset))
+
+    # Manuel checklist komutları
+    app.add_handler(CommandHandler(["c12", "c14", "c17", "c20", "c23"], manual_checklist))
+
+    # Manuel sipariş komutları
+    app.add_handler(CommandHandler(["kolaci", "biraci", "rakici"], manual_siparis))
 
     print("Bot Türkiye saatine göre çalışıyor 🇹🇷")
     app.run_polling()
