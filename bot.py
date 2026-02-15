@@ -16,6 +16,7 @@ logging.basicConfig(level=logging.INFO)
 
 TOKEN = ("7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I")
 GROUP_ID = -5143299793
+MANAGER_ID = 1753344846  # 🔐 Müdür ID
 
 if not TOKEN:
     raise ValueError("BOT_TOKEN bulunamadı!")
@@ -23,7 +24,6 @@ if not TOKEN:
 # ================= CHECKLIST TANIMLARI ================= #
 
 checklists = {
-    # Günlük Saatlik Checklistler
     "12": [
         "POS cihazları şarja takıldı mı",
         "Kasa açıldı mı",
@@ -62,8 +62,6 @@ checklists = {
         "Işıklar kapalı mı",
         "Masalar düzenli mi"
     ],
-
-    # Haftalık Toptancı Checklistleri
     "kolaci": [
         "Kola stoğu kontrol edildi mi",
         "Eksik ürünler yazıldı mı",
@@ -73,7 +71,7 @@ checklists = {
     "biraci": [
         "Bira stoğu kontrol edildi mi",
         "Soğuk dolap kontrol edildi mi",
-        "Sipariş geçildi mi",
+        "Sipariş verildi mi",
         "İrsaliye alındı mı"
     ],
     "rakici": [
@@ -86,7 +84,7 @@ checklists = {
 
 daily_status = {}
 
-# ================= HATIRLATMA SİSTEMİ ================= #
+# ================= HATIRLATMA ================= #
 
 REMINDER_FILE = "reminders.json"
 reminders = {}
@@ -117,12 +115,28 @@ async def send_reminder(context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_message(
         chat_id=GROUP_ID,
-        text=f"🔔 HATIRLATMA\n\n{reminder['text']}"
+        text=f"🔔 ÖDEME ZAMANI\n\n💳 {reminder['text']}"
     )
 
-    if reminder["type"] == "once":
-        reminders.pop(str(reminder_id))
-        save_reminders()
+    reminders.pop(str(reminder_id), None)
+    save_reminders()
+
+# ================= SİPARİŞ KONTROL ================= #
+
+async def siparis_kontrol(context: ContextTypes.DEFAULT_TYPE):
+    key = context.job.data
+    status = daily_status.get(key)
+
+    if not status:
+        return
+
+    siparis_index = 2  # "Sipariş verildi mi" maddesi
+
+    if siparis_index not in status["completed"]:
+        await context.bot.send_message(
+            chat_id=MANAGER_ID,
+            text=f"🚨 UYARI\n\n{key.upper()} siparişi henüz girilmedi!"
+        )
 
 # ================= CHECKLIST ================= #
 
@@ -149,6 +163,14 @@ async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE, key: str):
         text=f"{baslik}\n\nTamamlanma: %0",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+    # 🔥 Eğer toptancı ise 2 saat sonra kontrol et
+    if key in ["kolaci", "biraci", "rakici"]:
+        context.job_queue.run_once(
+            siparis_kontrol,
+            when=7200,  # 2 saat
+            data=key
+        )
 
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -196,55 +218,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= KOMUTLAR ================= #
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat.type != "private":
-        return
-
-    await update.message.reply_text(
-        "👋 Restoran Bot\n\n"
-        "Checklist:\n"
-        "/gonder 12\n"
-        "/gonder 14\n"
-        "/gonder 17\n"
-        "/gonder 20\n"
-        "/gonder 23\n"
-        "/gonder kolaci\n"
-        "/gonder biraci\n"
-        "/gonder rakici\n\n"
-        "Hatırlatma:\n"
-        "/odeme 25.02.2026 14:30 Kredi Kartı\n"
-        "/hatirlatmalar\n"
-        "/iptal ID\n"
-        "/reset"
-    )
-
-
-async def gonder(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat.type != "private":
-        return
-
-    if not context.args:
-        await update.message.reply_text("Örnek: /gonder 12")
-        return
-
-    key = context.args[0]
-
-    if key not in checklists:
-        await update.message.reply_text("Geçersiz checklist.")
-        return
-
-    await checklist_gonder(context, key)
-    await update.message.reply_text("Gönderildi ✅")
-
-
-async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat.type != "private":
-        return
-
-    daily_status.clear()
-    await update.message.reply_text("Checklist sıfırlandı.")
-
-
 async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global reminder_counter
 
@@ -256,11 +229,11 @@ async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     tarih = context.args[0]
-    saat = context.args[1]
+    saat_str = context.args[1]
     mesaj = " ".join(context.args[2:])
 
     try:
-        zaman = datetime.strptime(f"{tarih} {saat}", "%d.%m.%Y %H:%M")
+        zaman = datetime.strptime(f"{tarih} {saat_str}", "%d.%m.%Y %H:%M")
     except:
         await update.message.reply_text("Format yanlış.")
         return
@@ -276,85 +249,50 @@ async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.job_queue.run_once(send_reminder, zaman, data=reminder_id)
     save_reminders()
 
+    # ✅ Anında gruba bilgi mesajı
+    await context.bot.send_message(
+        chat_id=GROUP_ID,
+        text=f"📝 YENİ ÖDEME PLANLANDI\n\n📅 {tarih}\n🕒 {saat_str}\n💳 {mesaj}"
+    )
+
     await update.message.reply_text(f"⏰ Kuruldu (ID: {reminder_id})")
-
-
-async def hatirlatmalar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat.type != "private":
-        return
-
-    if not reminders:
-        await update.message.reply_text("Aktif hatırlatma yok.")
-        return
-
-    mesaj = "📋 HATIRLATMALAR\n\n"
-    for rid, data in reminders.items():
-        mesaj += f"ID {rid} → {data['text']} ({data['type']})\n"
-
-    await update.message.reply_text(mesaj)
-
-
-async def iptal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat.type != "private":
-        return
-
-    if not context.args:
-        await update.message.reply_text("Örnek: /iptal 3")
-        return
-
-    rid = context.args[0]
-
-    if rid in reminders:
-        reminders.pop(rid)
-        save_reminders()
-        await update.message.reply_text("Silindi.")
-    else:
-        await update.message.reply_text("ID yok.")
 
 # ================= MAIN ================= #
 
 def main():
     load_reminders()
-
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CallbackQueryHandler(button))
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("gonder", gonder))
-    app.add_handler(CommandHandler("reset", reset))
     app.add_handler(CommandHandler("odeme", odeme))
-    app.add_handler(CommandHandler("hatirlatmalar", hatirlatmalar))
-    app.add_handler(CommandHandler("iptal", iptal))
 
     tz = ZoneInfo("Europe/Istanbul")
 
-    # Günlük saatlik checklistler
     for key in ["12", "14", "17", "20", "23"]:
         app.job_queue.run_daily(
             lambda c, k=key: c.application.create_task(checklist_gonder(c, k)),
             time(int(key), 0, tzinfo=tz)
         )
 
-    # Haftalık toptancı günleri
     app.job_queue.run_daily(
         lambda c: c.application.create_task(checklist_gonder(c, "kolaci")),
         time(11, 0, tzinfo=tz),
-        days=(6,)  # Pazar
+        days=(6,)
     )
 
     app.job_queue.run_daily(
         lambda c: c.application.create_task(checklist_gonder(c, "biraci")),
         time(11, 0, tzinfo=tz),
-        days=(0,)  # Pazartesi
+        days=(0,)
     )
 
     app.job_queue.run_daily(
         lambda c: c.application.create_task(checklist_gonder(c, "rakici")),
         time(11, 0, tzinfo=tz),
-        days=(2,)  # Çarşamba
+        days=(2,)
     )
 
-    logging.info("FULL RESTORAN BOT AKTİF 🚀")
+    logging.info("RESTORAN ERP BOT AKTİF 🚀")
     app.run_polling()
 
 
