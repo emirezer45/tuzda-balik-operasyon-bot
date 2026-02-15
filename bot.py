@@ -7,6 +7,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CallbackQueryHandler,
+    CommandHandler,
     ContextTypes,
 )
 
@@ -65,8 +66,7 @@ daily_status = {}
 
 # ---------------- CHECKLIST GÖNDER ---------------- #
 
-async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE):
-    saat = context.job.data
+async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE, saat):
     items = checklists[saat]
 
     daily_status[saat] = {
@@ -100,7 +100,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     index = int(index)
 
     status = daily_status.get(saat)
-
     if not status:
         return
 
@@ -118,10 +117,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = f"⬜ {item}"
 
         keyboard.append([
-            InlineKeyboardButton(
-                text,
-                callback_data=f"{saat}_{i}"
-            )
+            InlineKeyboardButton(text, callback_data=f"{saat}_{i}")
         ])
 
     await query.edit_message_text(
@@ -129,16 +125,47 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-# ---------------- GÜN SONU RAPOR ---------------- #
+# ---------------- KOMUTLAR ---------------- #
 
-async def gun_sonu_rapor(context: ContextTypes.DEFAULT_TYPE):
-    mesaj = "📊 GÜN SONU RAPORU\n\n"
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("✅ Restoran Checklist Bot Aktif")
 
+async def rapor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    mesaj = "📊 ANLIK DURUM\n\n"
     for saat, status in daily_status.items():
         percent = int(len(status["completed"]) / status["total"] * 100)
         mesaj += f"{saat}:00 → %{percent}\n"
 
-    await context.bot.send_message(chat_id=GROUP_ID, text=mesaj)
+    await update.message.reply_text(mesaj)
+
+async def durum(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not daily_status:
+        await update.message.reply_text("Henüz checklist başlatılmadı.")
+        return
+
+    mesaj = "📋 DURUM\n\n"
+    for saat, status in daily_status.items():
+        percent = int(len(status["completed"]) / status["total"] * 100)
+        mesaj += f"{saat}:00 → %{percent}\n"
+
+    await update.message.reply_text(mesaj)
+
+async def gonder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Örnek kullanım: /gonder 12")
+        return
+
+    saat = context.args[0]
+
+    if saat not in checklists:
+        await update.message.reply_text("Geçersiz saat.")
+        return
+
+    await checklist_gonder(context, saat)
+
+async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    daily_status.clear()
+    await update.message.reply_text("🔄 Günlük checklist sıfırlandı.")
 
 # ---------------- MAIN ---------------- #
 
@@ -146,18 +173,21 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CallbackQueryHandler(button))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("rapor", rapor))
+    app.add_handler(CommandHandler("durum", durum))
+    app.add_handler(CommandHandler("gonder", gonder))
+    app.add_handler(CommandHandler("reset", reset))
 
     tz = ZoneInfo("Europe/Istanbul")
 
-    app.job_queue.run_daily(checklist_gonder, time(12, 0, tzinfo=tz), data="12")
-    app.job_queue.run_daily(checklist_gonder, time(14, 0, tzinfo=tz), data="14")
-    app.job_queue.run_daily(checklist_gonder, time(17, 0, tzinfo=tz), data="17")
-    app.job_queue.run_daily(checklist_gonder, time(20, 0, tzinfo=tz), data="20")
-    app.job_queue.run_daily(checklist_gonder, time(23, 0, tzinfo=tz), data="23")
+    app.job_queue.run_daily(lambda c: checklist_gonder(c, "12"), time(12, 0, tzinfo=tz))
+    app.job_queue.run_daily(lambda c: checklist_gonder(c, "14"), time(14, 0, tzinfo=tz))
+    app.job_queue.run_daily(lambda c: checklist_gonder(c, "17"), time(17, 0, tzinfo=tz))
+    app.job_queue.run_daily(lambda c: checklist_gonder(c, "20"), time(20, 0, tzinfo=tz))
+    app.job_queue.run_daily(lambda c: checklist_gonder(c, "23"), time(23, 0, tzinfo=tz))
 
-    app.job_queue.run_daily(gun_sonu_rapor, time(23, 30, tzinfo=tz))
-
-    logging.info("FULL RESTORAN CHECKLIST BOT AKTİF")
+    logging.info("FULL KOMUTLU CHECKLIST BOT AKTİF")
     app.run_polling()
 
 if __name__ == "__main__":
