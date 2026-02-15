@@ -66,7 +66,9 @@ daily_status = {}
 
 # ---------------- CHECKLIST GÖNDER ---------------- #
 
-async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE, saat):
+async def checklist_gonderif update.message.chat.type != "private":
+    return
+(context: ContextTypes.DEFAULT_TYPE, saat):
     items = checklists[saat]
 
     daily_status[saat] = {
@@ -92,45 +94,61 @@ async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE, saat):
 
 # ---------------- BUTON ---------------- #
 
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def buttonif update.message.chat.type != "private":
+    return
+(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     saat, index = query.data.split("_")
     index = int(index)
 
+    user = query.from_user.first_name
+
     status = daily_status.get(saat)
     if not status:
         return
 
     if index not in status["completed"]:
-        status["completed"].append(index)
+        status["completed"][index] = user
 
     percent = int(len(status["completed"]) / status["total"] * 100)
 
     keyboard = []
 
+    text_output = f"🕛 {saat}:00 Checklist\n\n"
+
     for i, item in enumerate(checklists[saat]):
         if i in status["completed"]:
-            text = f"✅ {item}"
+            yapan = status["completed"][i]
+            text_output += f"✅ {item} – {yapan}\n"
         else:
-            text = f"⬜ {item}"
+            text_output += f"⬜ {item}\n"
 
         keyboard.append([
-            InlineKeyboardButton(text, callback_data=f"{saat}_{i}")
+            InlineKeyboardButton(
+                "✔ İşaretle",
+                callback_data=f"{saat}_{i}"
+            )
         ])
 
+    text_output += f"\nTamamlanma: %{percent}"
+
     await query.edit_message_text(
-        f"🕛 {saat}:00 Checklist\n\nTamamlanma: %{percent}",
+        text_output,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 # ---------------- KOMUTLAR ---------------- #
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def startif update.message.chat.type != "private":
+    return
+(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Restoran Checklist Bot Aktif")
 
-async def rapor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def raporif update.message.chat.type != "private":
+    return
+(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mesaj = "📊 ANLIK DURUM\n\n"
     for saat, status in daily_status.items():
         percent = int(len(status["completed"]) / status["total"] * 100)
@@ -138,13 +156,19 @@ async def rapor(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(mesaj)
 
-async def durum(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def durumif update.message.chat.type != "private":
+    return
+
     if not daily_status:
         await update.message.reply_text("Henüz checklist başlatılmadı.")
         return
 
     mesaj = "📋 DURUM\n\n"
-    for saat, status in daily_status.items():
+    for saat, status daily_status[saat] = {
+    "completed": {},   # index : user
+    "total": len(items)
+}
+
         percent = int(len(status["completed"]) / status["total"] * 100)
         mesaj += f"{saat}:00 → %{percent}\n"
 
