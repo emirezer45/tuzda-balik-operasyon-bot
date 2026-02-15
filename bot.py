@@ -12,7 +12,7 @@ from telegram.ext import (
 
 logging.basicConfig(level=logging.INFO)
 
-TOKEN = "7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I"
+TOKEN = "7729207035:AAEkb6SMnbisbhJyQfSOyu8KeO2EAKYVupE"
 GROUP_ID = -5143299793
 MANAGER_ID = 1753344846
 
