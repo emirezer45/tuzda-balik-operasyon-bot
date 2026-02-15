@@ -1,212 +1,159 @@
-import logging
-from zoneinfo import ZoneInfo
-from datetime import time, datetime
-
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import pytz
+from datetime import time
+from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder,
-    CallbackQueryHandler,
+    Application,
     CommandHandler,
     ContextTypes,
 )
 
-logging.basicConfig(level=logging.INFO)
+TOKEN = "7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I"
+GROUP_ID = -51432299793
+MUDUR_ID = 1753344846
 
-TOKEN = "7729207035:AAEkb6SMnbisbhJyQfSOyu8KeO2EAKYVupE"
-GROUP_ID = -5143299793
-MANAGER_ID = 1753344846
+TZ = pytz.timezone("Europe/Istanbul")
 
-# ================= CHECKLIST ================= #
+# =========================
+# CHECKLISTLER
+# =========================
 
 checklists = {
-    "12": ["POS cihazları şarja takıldı mı","Kasa açıldı mı","Faturalar sisteme işlendi mi","Temizlik kontrolü yapıldı mı"],
-    "14": ["Eksikler sipariş edildi mi","Rezervasyonlar kontrol edildi mi","Faturalar sisteme işlendi mi","Eksikler tamamlandı mı"],
-    "17": ["Servis öncesi son kontrol yapıldı mı","Personel işe vaktinde geldi mi","Kasa aktif mi","Giderler yazıldı mı","Şirket telefonu mesajları cevaplandı mı"],
-    "20": ["Problem olduysa üst yetkiliye bildirildi mi","Paket sistemleri aktif mi","İşleyiş problemsiz mi","Kasa kontrol yapıldı mı"],
-    "23": ["Paketler sisteme girildi mi","Z raporları alındı mı","Kasa gelir gider yazıldı mı","POS cihazları şarja takıldı mı","Kasa düzenli mi","Gün sonu tablosu işlendi mi","Kasa kapatıldı mı","Alarm kuruldu mu","Camlar kapalı mı","Işıklar kapalı mı","Masalar düzenli mi"],
-    "kolaci": ["Kola stoğu kontrol edildi mi","Eksik ürünler yazıldı mı","Sipariş verildi mi","Fatura kontrol edildi mi"],
-    "biraci": ["Bira stoğu kontrol edildi mi","Soğuk dolap kontrol edildi mi","Sipariş verildi mi","İrsaliye alındı mı"],
-    "rakici": ["Rakı stoğu kontrol edildi mi","Eksikler not edildi mi","Sipariş verildi mi","Fatura kontrol edildi mi"]
+    "12": """🕛 12:00 Açılış Kontrolü
+
+▫️ POS cihazları şarja takıldı mı?
+▫️ Kasa açıldı mı?
+▫️ Faturalar sisteme işlendi mi?
+▫️ Temizlik kontrolü yapıldı mı?
+""",
+
+    "14": """🕑 14:00 Kontrol
+
+▫️ Eksikler sipariş edildi mi?
+▫️ Rezervasyonlar kontrol edildi mi?
+▫️ Faturalar sisteme işlendi mi?
+▫️ Eksikler tamamlandı mı?
+""",
+
+    "17": """🕔 17:00 Servis Öncesi
+
+▫️ Son kontrol yapıldı mı?
+▫️ Personel zamanında geldi mi?
+▫️ Kasa aktif mi?
+▫️ Giderler yazıldı mı?
+▫️ Şirket telefonu cevaplandı mı?
+""",
+
+    "20": """🕗 20:00 Kontrol
+
+▫️ Problem varsa bildirildi mi?
+▫️ Paket sistemleri aktif mi?
+▫️ İşleyiş düzgün mü?
+▫️ Kasa kontrol edildi mi?
+""",
+
+    "23": """🕚 23:00 Gün Sonu
+
+▫️ Paketler sisteme girildi mi?
+▫️ Z raporları alındı mı?
+▫️ Gelir gider yazıldı mı?
+▫️ POS şarja takıldı mı?
+▫️ Kasa düzenli mi?
+▫️ Alarm kuruldu mu?
+▫️ Camlar kapalı mı?
+▫️ Işıklar kapalı mı?
+▫️ Masalar düzenli mi?
+"""
 }
 
-daily_status = {}
+# =========================
+# GÖNDERME FONKSİYONU
+# =========================
 
-# ================= PANEL ================= #
+async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE):
+    key = context.job.data
+    await context.bot.send_message(chat_id=GROUP_ID, text=checklists[key])
+
+# =========================
+# SİPARİŞ GÜNLERİ
+# =========================
+
+async def siparis_gonder(context: ContextTypes.DEFAULT_TYPE):
+    mesaj = context.job.data
+    await context.bot.send_message(chat_id=GROUP_ID, text=mesaj)
+
+# =========================
+# ÖDEME HATIRLATMA
+# =========================
+
+async def odeme_hatirlat(context: ContextTypes.DEFAULT_TYPE):
+    mesaj = context.job.data
+    await context.bot.send_message(chat_id=GROUP_ID, text=f"💰 ÖDEME HATIRLATMA\n\n{mesaj}")
+
+# =========================
+# PANEL KOMUTU
+# =========================
 
 async def panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat.type != "private":
-        return
+    await update.message.reply_text("""
+📌 BOT KOMUTLARI
 
-    text = """
-📊 RESTORAN ERP PRO PANEL
+/checklist → Manuel checklist
+/odeme → Ödeme hatırlatma kur
+/panel → Komutları göster
+""")
 
-/start - Botu başlat
-/panel - Komutları göster
-/odeme - Ödeme hatırlatıcı kur
-/reset - Checklist sıfırla (Müdür)
-
-/c12 /c14 /c17 /c20 /c23 - Manuel saatlik checklist
-/kolaci /biraci /rakici - Manuel sipariş checklist
-"""
-    await update.message.reply_text(text)
-
-# ================= START ================= #
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🤖 ERP PRO BOT AKTİF\n\nKomutlar için /panel")
-
-# ================= RESET ================= #
-
-async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != MANAGER_ID:
-        return
-
-    daily_status.clear()
-    await update.message.reply_text("🔄 Checklistler sıfırlandı.")
-
-# ================= CHECKLIST ================= #
-
-async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE, key: str):
-    items = checklists[key]
-    daily_status[key] = {"completed": {}, "total": len(items)}
-
-    baslik = f"🕛 {key}:00 Checklist" if key.isdigit() else f"📦 {key.upper()} Sipariş"
-
-    keyboard = [[InlineKeyboardButton("✔ İşaretle", callback_data=f"{key}_{i}")]
-                for i in range(len(items))]
-
-    await context.bot.send_message(
-        chat_id=GROUP_ID,
-        text=f"{baslik}\n\nTamamlanma: %0",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-    if key in ["kolaci","biraci","rakici"]:
-        context.job_queue.run_once(siparis_kontrol, 7200, data=key)
-
-async def siparis_kontrol(context: ContextTypes.DEFAULT_TYPE):
-    key = context.job.data
-    status = daily_status.get(key)
-    if not status:
-        return
-
-    if 2 not in status["completed"]:
-        await context.bot.send_message(
-            chat_id=MANAGER_ID,
-            text=f"🚨 {key.upper()} siparişi yapılmadı!"
-        )
-
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    key, index = query.data.split("_")
-    index = int(index)
-
-    user = query.from_user.first_name
-    status = daily_status.get(key)
-    if not status:
-        return
-
-    if index not in status["completed"]:
-        status["completed"][index] = user
-
-    percent = int(len(status["completed"]) / status["total"] * 100)
-
-    text_output = f"{'🕛 '+key+':00' if key.isdigit() else '📦 '+key.upper()} Checklist\n\n"
-
-    keyboard = []
-
-    for i, item in enumerate(checklists[key]):
-        if i in status["completed"]:
-            yapan = status["completed"][i]
-            text_output += f"✅ {item} – {yapan}\n"
-        else:
-            text_output += f"⬜ {item}\n"
-
-        keyboard.append([InlineKeyboardButton("✔ İşaretle", callback_data=f"{key}_{i}")])
-
-    text_output += f"\nTamamlanma: %{percent}"
-
-    await query.edit_message_text(text_output, reply_markup=InlineKeyboardMarkup(keyboard))
-
-# ================= ÖDEME ================= #
-
-async def send_reminder(context: ContextTypes.DEFAULT_TYPE):
-    mesaj = context.job.data
-    await context.bot.send_message(chat_id=GROUP_ID, text=f"🔔 ÖDEME ZAMANI\n\n💳 {mesaj}")
+# =========================
+# ÖDEME KOMUTU
+# =========================
 
 async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat.type != "private":
+    if len(context.args) < 2:
+        await update.message.reply_text("Kullanım: /odeme 25 Kredi Kartı")
         return
 
-    if len(context.args) < 3:
-        await update.message.reply_text("Örnek:\n/odeme 25.02.2026 14:30 Kredi Kartı")
-        return
+    gun = int(context.args[0])
+    aciklama = " ".join(context.args[1:])
 
-    tarih = context.args[0]
-    saat_str = context.args[1]
-    mesaj = " ".join(context.args[2:])
-
-    try:
-        zaman = datetime.strptime(f"{tarih} {saat_str}", "%d.%m.%Y %H:%M")
-    except:
-        await update.message.reply_text("Format yanlış.")
-        return
-
-    delay = (zaman - datetime.now()).total_seconds()
-    if delay <= 0:
-        await update.message.reply_text("Geçmiş tarih girdin.")
-        return
-
-    context.job_queue.run_once(send_reminder, delay, data=mesaj)
-
-    await context.bot.send_message(
-        chat_id=GROUP_ID,
-        text=f"📝 YENİ ÖDEME PLANLANDI\n\n📅 {tarih}\n🕒 {saat_str}\n💳 {mesaj}"
+    context.job_queue.run_monthly(
+        odeme_hatirlat,
+        when=time(10, 0, tzinfo=TZ),
+        day=gun,
+        data=aciklama,
+        name=f"odeme_{gun}"
     )
 
-    await update.message.reply_text("⏰ Kuruldu!")
+    await update.message.reply_text("✅ Ödeme hatırlatma kuruldu.")
 
-# ================= MAIN ================= #
+# =========================
+# BOT BAŞLAT
+# =========================
 
 def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = (
+        Application.builder()
+        .token(TOKEN)
+        .timezone(TZ)
+        .build()
+    )
 
-    # Komutlar
-    app.add_handler(CommandHandler("start", start))
+    job_queue = app.job_queue
+
+    # Günlük checklist saatleri
+    job_queue.run_daily(checklist_gonder, time(12, 0, tzinfo=TZ), data="12")
+    job_queue.run_daily(checklist_gonder, time(14, 0, tzinfo=TZ), data="14")
+    job_queue.run_daily(checklist_gonder, time(17, 0, tzinfo=TZ), data="17")
+    job_queue.run_daily(checklist_gonder, time(20, 0, tzinfo=TZ), data="20")
+    job_queue.run_daily(checklist_gonder, time(23, 0, tzinfo=TZ), data="23")
+
+    # Sipariş Günleri
+    job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(6,), data="🥤 Pazar - Kolacı Siparişi")
+    job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(0,), data="🍺 Pazartesi - Biracı Siparişi")
+    job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(2,), data="🥃 Çarşamba - Rakıcı Siparişi")
+
     app.add_handler(CommandHandler("panel", panel))
     app.add_handler(CommandHandler("odeme", odeme))
-    app.add_handler(CommandHandler("reset", reset))
 
-    # Manuel checklist
-    app.add_handler(CommandHandler("c12", lambda u,c: checklist_gonder(c,"12")))
-    app.add_handler(CommandHandler("c14", lambda u,c: checklist_gonder(c,"14")))
-    app.add_handler(CommandHandler("c17", lambda u,c: checklist_gonder(c,"17")))
-    app.add_handler(CommandHandler("c20", lambda u,c: checklist_gonder(c,"20")))
-    app.add_handler(CommandHandler("c23", lambda u,c: checklist_gonder(c,"23")))
-    app.add_handler(CommandHandler("kolaci", lambda u,c: checklist_gonder(c,"kolaci")))
-    app.add_handler(CommandHandler("biraci", lambda u,c: checklist_gonder(c,"biraci")))
-    app.add_handler(CommandHandler("rakici", lambda u,c: checklist_gonder(c,"rakici")))
-
-    app.add_handler(CallbackQueryHandler(button))
-
-    tz = ZoneInfo("Europe/Istanbul")
-
-    for key in ["12","14","17","20","23"]:
-        app.job_queue.run_daily(
-            lambda c, k=key: c.application.create_task(checklist_gonder(c,k)),
-            time(int(key),0,tzinfo=tz)
-        )
-
-    app.job_queue.run_daily(lambda c: c.application.create_task(checklist_gonder(c,"kolaci")),
-                            time(11,0,tzinfo=tz), days=(6,))
-    app.job_queue.run_daily(lambda c: c.application.create_task(checklist_gonder(c,"biraci")),
-                            time(11,0,tzinfo=tz), days=(0,))
-    app.job_queue.run_daily(lambda c: c.application.create_task(checklist_gonder(c,"rakici")),
-                            time(11,0,tzinfo=tz), days=(2,))
-
-    logging.info("ERP PRO BOT AKTİF 🚀")
+    print("Bot Türkiye saatine göre çalışıyor 🇹🇷")
     app.run_polling()
 
 if __name__ == "__main__":
