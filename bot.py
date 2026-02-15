@@ -1,4 +1,4 @@
-import pytz
+from zoneinfo import ZoneInfo
 from datetime import time
 from telegram import Update
 from telegram.ext import (
@@ -7,11 +7,11 @@ from telegram.ext import (
     ContextTypes,
 )
 
-TOKEN = "7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I"  
+TOKEN = "7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I"
 GROUP_ID = -51432299793
 MUDUR_ID = 1753344846
 
-TZ = pytz.timezone("Europe/Istanbul")
+TZ = ZoneInfo("Europe/Istanbul")
 
 # =========================
 # CHECKLISTLER
@@ -73,17 +73,9 @@ async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE):
     key = context.job.data
     await context.bot.send_message(chat_id=GROUP_ID, text=checklists[key])
 
-# =========================
-# SİPARİŞ GÜNLERİ
-# =========================
-
 async def siparis_gonder(context: ContextTypes.DEFAULT_TYPE):
     mesaj = context.job.data
     await context.bot.send_message(chat_id=GROUP_ID, text=mesaj)
-
-# =========================
-# ÖDEME HATIRLATMA
-# =========================
 
 async def odeme_hatirlat(context: ContextTypes.DEFAULT_TYPE):
     mesaj = context.job.data
@@ -97,7 +89,7 @@ async def panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("""
 📌 BOT KOMUTLARI
 
-/odeme → Ödeme hatırlatma kur
+/odeme 25 Kredi Kartı → Aylık ödeme hatırlatma
 /panel → Komutları göster
 """)
 
@@ -129,17 +121,16 @@ async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     app = Application.builder().token(TOKEN).build()
-
     job_queue = app.job_queue
 
-    # Günlük checklist saatleri (Türkiye saati)
+    # Günlük checklistler
     job_queue.run_daily(checklist_gonder, time(12, 0, tzinfo=TZ), data="12")
     job_queue.run_daily(checklist_gonder, time(14, 0, tzinfo=TZ), data="14")
     job_queue.run_daily(checklist_gonder, time(17, 0, tzinfo=TZ), data="17")
     job_queue.run_daily(checklist_gonder, time(20, 0, tzinfo=TZ), data="20")
     job_queue.run_daily(checklist_gonder, time(23, 0, tzinfo=TZ), data="23")
 
-    # Sipariş Günleri (Türkiye saati)
+    # Sipariş günleri
     job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(6,), data="🥤 Pazar - Kolacı Siparişi")
     job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(0,), data="🍺 Pazartesi - Biracı Siparişi")
     job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(2,), data="🥃 Çarşamba - Rakıcı Siparişi")
