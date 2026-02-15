@@ -7,7 +7,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
-TOKEN = "7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I"
+TOKEN = "7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I"  
 GROUP_ID = -51432299793
 MUDUR_ID = 1753344846
 
@@ -97,7 +97,6 @@ async def panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("""
 📌 BOT KOMUTLARI
 
-/checklist → Manuel checklist
 /odeme → Ödeme hatırlatma kur
 /panel → Komutları göster
 """)
@@ -129,23 +128,18 @@ async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 
 def main():
-    app = (
-        Application.builder()
-        .token(TOKEN)
-        .timezone(TZ)
-        .build()
-    )
+    app = Application.builder().token(TOKEN).build()
 
     job_queue = app.job_queue
 
-    # Günlük checklist saatleri
+    # Günlük checklist saatleri (Türkiye saati)
     job_queue.run_daily(checklist_gonder, time(12, 0, tzinfo=TZ), data="12")
     job_queue.run_daily(checklist_gonder, time(14, 0, tzinfo=TZ), data="14")
     job_queue.run_daily(checklist_gonder, time(17, 0, tzinfo=TZ), data="17")
     job_queue.run_daily(checklist_gonder, time(20, 0, tzinfo=TZ), data="20")
     job_queue.run_daily(checklist_gonder, time(23, 0, tzinfo=TZ), data="23")
 
-    # Sipariş Günleri
+    # Sipariş Günleri (Türkiye saati)
     job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(6,), data="🥤 Pazar - Kolacı Siparişi")
     job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(0,), data="🍺 Pazartesi - Biracı Siparişi")
     job_queue.run_daily(siparis_gonder, time(11, 0, tzinfo=TZ), days=(2,), data="🥃 Çarşamba - Rakıcı Siparişi")
