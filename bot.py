@@ -14,7 +14,7 @@ from telegram.ext import (
     filters,
 )
 
-TOKEN = "7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I"  
+TOKEN = "7729207035:AAFaa8pzRsfoPOabBhfJOnquGsXH2HkMGdk"  
 MUDUR_ID = 1753344846
 TZ = ZoneInfo("Europe/Istanbul")
 
