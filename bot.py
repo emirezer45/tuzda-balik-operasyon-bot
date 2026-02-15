@@ -69,6 +69,18 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= CHECKLIST ================= #
 
+async def manual_checklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.chat.type != "private":
+        return
+
+    key = context.args[0]
+
+    if key not in checklists:
+        await update.message.reply_text("Geçersiz checklist.")
+        return
+
+    await checklist_gonder(context, key)
+    await update.message.reply_text(f"{key} checklisti gönderildi.")
 async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE, key: str):
     items = checklists[key]
 
@@ -175,6 +187,15 @@ async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= MAIN ================= #
 
+app.add_handler(CommandHandler("c12", lambda u,c: checklist_gonder(c,"12")))
+app.add_handler(CommandHandler("c14", lambda u,c: checklist_gonder(c,"14")))
+app.add_handler(CommandHandler("c17", lambda u,c: checklist_gonder(c,"17")))
+app.add_handler(CommandHandler("c20", lambda u,c: checklist_gonder(c,"20")))
+app.add_handler(CommandHandler("c23", lambda u,c: checklist_gonder(c,"23")))
+
+app.add_handler(CommandHandler("kolaci", lambda u,c: checklist_gonder(c,"kolaci")))
+app.add_handler(CommandHandler("biraci", lambda u,c: checklist_gonder(c,"biraci")))
+app.add_handler(CommandHandler("rakici", lambda u,c: checklist_gonder(c,"rakici")))
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
