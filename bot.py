@@ -12,7 +12,7 @@ from telegram.ext import (
 
 logging.basicConfig(level=logging.INFO)
 
-TOKEN = "7729207035:AAH6ugq2Ck-eaBGUwkcRtYGLSrn_Vec-6uI"
+TOKEN = "7729207035:AAEW8jA8MqQtGpMzuYGzYrvP_EuPvAgiW3I"
 GROUP_ID = -5143299793
 MANAGER_ID = 1753344846
 
@@ -43,13 +43,10 @@ async def panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /start - Botu başlat
 /panel - Komutları göster
 /odeme - Ödeme hatırlatıcı kur
-/reset - Günlük checklist sıfırla (Müdür)
+/reset - Checklist sıfırla (Müdür)
 
-Otomatik Sistemler:
-• Saatlik checklist
-• Sipariş günü kontrol
-• Ödeme hatırlatma
-• Müdüre otomatik uyarı
+/c12 /c14 /c17 /c20 /c23 - Manuel saatlik checklist
+/kolaci /biraci /rakici - Manuel sipariş checklist
 """
     await update.message.reply_text(text)
 
@@ -69,21 +66,8 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= CHECKLIST ================= #
 
-async def manual_checklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat.type != "private":
-        return
-
-    key = context.args[0]
-
-    if key not in checklists:
-        await update.message.reply_text("Geçersiz checklist.")
-        return
-
-    await checklist_gonder(context, key)
-    await update.message.reply_text(f"{key} checklisti gönderildi.")
 async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE, key: str):
     items = checklists[key]
-
     daily_status[key] = {"completed": {}, "total": len(items)}
 
     baslik = f"🕛 {key}:00 Checklist" if key.isdigit() else f"📦 {key.upper()} Sipariş"
@@ -97,7 +81,6 @@ async def checklist_gonder(context: ContextTypes.DEFAULT_TYPE, key: str):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-    # sipariş kontrolü (2 saat sonra)
     if key in ["kolaci","biraci","rakici"]:
         context.job_queue.run_once(siparis_kontrol, 7200, data=key)
 
@@ -187,22 +170,25 @@ async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= MAIN ================= #
 
-app.add_handler(CommandHandler("c12", lambda u,c: checklist_gonder(c,"12")))
-app.add_handler(CommandHandler("c14", lambda u,c: checklist_gonder(c,"14")))
-app.add_handler(CommandHandler("c17", lambda u,c: checklist_gonder(c,"17")))
-app.add_handler(CommandHandler("c20", lambda u,c: checklist_gonder(c,"20")))
-app.add_handler(CommandHandler("c23", lambda u,c: checklist_gonder(c,"23")))
-
-app.add_handler(CommandHandler("kolaci", lambda u,c: checklist_gonder(c,"kolaci")))
-app.add_handler(CommandHandler("biraci", lambda u,c: checklist_gonder(c,"biraci")))
-app.add_handler(CommandHandler("rakici", lambda u,c: checklist_gonder(c,"rakici")))
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # Komutlar
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("panel", panel))
     app.add_handler(CommandHandler("odeme", odeme))
     app.add_handler(CommandHandler("reset", reset))
+
+    # Manuel checklist
+    app.add_handler(CommandHandler("c12", lambda u,c: checklist_gonder(c,"12")))
+    app.add_handler(CommandHandler("c14", lambda u,c: checklist_gonder(c,"14")))
+    app.add_handler(CommandHandler("c17", lambda u,c: checklist_gonder(c,"17")))
+    app.add_handler(CommandHandler("c20", lambda u,c: checklist_gonder(c,"20")))
+    app.add_handler(CommandHandler("c23", lambda u,c: checklist_gonder(c,"23")))
+    app.add_handler(CommandHandler("kolaci", lambda u,c: checklist_gonder(c,"kolaci")))
+    app.add_handler(CommandHandler("biraci", lambda u,c: checklist_gonder(c,"biraci")))
+    app.add_handler(CommandHandler("rakici", lambda u,c: checklist_gonder(c,"rakici")))
+
     app.add_handler(CallbackQueryHandler(button))
 
     tz = ZoneInfo("Europe/Istanbul")
@@ -213,7 +199,6 @@ def main():
             time(int(key),0,tzinfo=tz)
         )
 
-    # Sipariş günleri
     app.job_queue.run_daily(lambda c: c.application.create_task(checklist_gonder(c,"kolaci")),
                             time(11,0,tzinfo=tz), days=(6,))
     app.job_queue.run_daily(lambda c: c.application.create_task(checklist_gonder(c,"biraci")),
