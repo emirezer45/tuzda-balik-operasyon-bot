@@ -14,10 +14,6 @@ MUDUR_ID = 1753344846
 
 TZ = ZoneInfo("Europe/Istanbul")
 
-# =========================
-# CHECKLISTLER (GRUBA GİDER)
-# =========================
-
 checklists = {
     "12": """🕛 12:00 Açılış Kontrolü
 
@@ -68,15 +64,24 @@ SIPARIS_MESAJ = {
     "rakici": "🥃 Rakıcı Siparişi (Manuel)",
 }
 
-# =========================
-# YARDIMCI: sadece özelden
-# =========================
-
 def is_private(update: Update) -> bool:
     return bool(update.effective_chat and update.effective_chat.type == "private")
 
+# ---- Güvenli gönderim: hata olursa özelden yaz ----
+async def safe_send_to_group(context: ContextTypes.DEFAULT_TYPE, user_chat_id: int, text: str):
+    try:
+        await context.bot.send_message(chat_id=GROUP_ID, text=text)
+        return True, None
+    except Exception as e:
+        # hatayı kullanıcıya dm at
+        try:
+            await context.bot.send_message(chat_id=user_chat_id, text=f"❌ Gruba gönderemedim.\nHata: {e}")
+        except:
+            pass
+        return False, str(e)
+
 # =========================
-# OTOMATİK JOB FONKSİYONLARI
+# JOB FONKSİYONLARI
 # =========================
 
 async def checklist_job(context: ContextTypes.DEFAULT_TYPE):
@@ -107,30 +112,41 @@ async def panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📌 TÜM KOMUTLAR\n\n"
         "/start → Botu başlat\n"
         "/panel → Komut listesini göster\n"
-        "/id → ID'leri göster (chat/user)\n\n"
-        "MANUEL CHECKLIST (gruba gönderir):\n"
+        "/id → ID'leri göster\n"
+        "/testgrup → Gruba mesaj testi\n\n"
+        "MANUEL CHECKLIST:\n"
         "/c12 /c14 /c17 /c20 /c23\n\n"
-        "MANUEL SİPARİŞ (gruba gönderir):\n"
+        "MANUEL SİPARİŞ:\n"
         "/kolaci /biraci /rakici\n\n"
-        "ÖDEME HATIRLATICI:\n"
-        "/odeme 25 Kredi Kartı → Her ayın 25'i 10:00\n\n"
+        "ÖDEME:\n"
+        "/odeme 25 Kredi Kartı\n\n"
         "YÖNETİCİ:\n"
-        "/reset → (Sadece Müdür) ödeme hatırlatmalarını temizler"
+        "/reset (Sadece Müdür)"
     )
 
 async def id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # İstediğin gibi: özelden yazınca tüm ID'leri gösterelim
     if not is_private(update):
         return
-    user_id = update.effective_user.id if update.effective_user else None
-    chat_id = update.effective_chat.id if update.effective_chat else None
-
     await update.message.reply_text(
         f"🆔 ID Bilgileri\n\n"
-        f"👤 User ID: {user_id}\n"
-        f"💬 Bu chat ID: {chat_id}\n"
+        f"👤 User ID: {update.effective_user.id}\n"
+        f"💬 Bu chat ID: {update.effective_chat.id}\n"
         f"👥 Grup ID (ayar): {GROUP_ID}\n"
     )
+
+# >>> TEŞHİS KOMUTU
+async def testgrup(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_private(update):
+        return
+    ok, err = await safe_send_to_group(
+        context,
+        user_chat_id=update.effective_chat.id,
+        text="✅ Test: Bot gruba mesaj atabiliyor."
+    )
+    if ok:
+        await update.message.reply_text("✅ Test başarılı: Mesaj gruba gitti.")
+    else:
+        await update.message.reply_text("❌ Test başarısız. Hata mesajını yukarıda attım.")
 
 async def manual_checklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_private(update):
@@ -143,8 +159,9 @@ async def manual_checklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Geçersiz komut.")
         return
 
-    await context.bot.send_message(chat_id=GROUP_ID, text=checklists[key])
-    await update.message.reply_text(f"✅ {key}:00 checklist gruba gönderildi.")
+    ok, _ = await safe_send_to_group(context, update.effective_chat.id, checklists[key])
+    if ok:
+        await update.message.reply_text(f"✅ {key}:00 checklist gruba gönderildi.")
 
 async def manual_siparis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_private(update):
@@ -155,8 +172,9 @@ async def manual_siparis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Geçersiz sipariş komutu.")
         return
 
-    await context.bot.send_message(chat_id=GROUP_ID, text=SIPARIS_MESAJ[cmd])
-    await update.message.reply_text("✅ Sipariş mesajı gruba gönderildi.")
+    ok, _ = await safe_send_to_group(context, update.effective_chat.id, SIPARIS_MESAJ[cmd])
+    if ok:
+        await update.message.reply_text("✅ Sipariş mesajı gruba gönderildi.")
 
 async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_private(update):
@@ -173,7 +191,7 @@ async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not (1 <= gun <= 28):
-        await update.message.reply_text("Gün 1 ile 28 arasında olmalı (ay farklarından dolayı).")
+        await update.message.reply_text("Gün 1 ile 28 arasında olmalı.")
         return
 
     aciklama = " ".join(context.args[1:]).strip()
@@ -188,15 +206,16 @@ async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.job_queue.run_monthly(
         odeme_job,
-        when=time(10, 0, tzinfo=TZ),  # TR 10:00
+        when=time(10, 0, tzinfo=TZ),
         day=gun,
         data=aciklama,
         name=job_name
     )
 
-    await context.bot.send_message(
-        chat_id=GROUP_ID,
-        text=f"📝 YENİ ÖDEME PLANLANDI\n\n📅 Her ayın {gun}. günü\n🕒 10:00 (TR)\n💳 {aciklama}"
+    await safe_send_to_group(
+        context,
+        update.effective_chat.id,
+        f"📝 YENİ ÖDEME PLANLANDI\n\n📅 Her ayın {gun}. günü\n🕒 10:00 (TR)\n💳 {aciklama}"
     )
 
     await update.message.reply_text(f"✅ Ödeme hatırlatma kuruldu. (Her ay {gun} - 10:00 TR)")
@@ -217,22 +236,18 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"🔄 Ödeme hatırlatmalar temizlendi. (Silinen: {removed})")
 
-# =========================
-# MAIN
-# =========================
-
 def main():
     app = Application.builder().token(TOKEN).build()
     job_queue = app.job_queue
 
-    # Otomatik günlük checklistler (TR saati)
+    # Otomatik günlük checklistler
     job_queue.run_daily(checklist_job, time(12, 0, tzinfo=TZ), data="12", name="chk_12")
     job_queue.run_daily(checklist_job, time(14, 0, tzinfo=TZ), data="14", name="chk_14")
     job_queue.run_daily(checklist_job, time(17, 0, tzinfo=TZ), data="17", name="chk_17")
     job_queue.run_daily(checklist_job, time(20, 0, tzinfo=TZ), data="20", name="chk_20")
     job_queue.run_daily(checklist_job, time(23, 0, tzinfo=TZ), data="23", name="chk_23")
 
-    # Otomatik sipariş günleri (TR saati)
+    # Otomatik sipariş günleri
     job_queue.run_daily(siparis_job, time(11, 0, tzinfo=TZ), days=(6,), data="🥤 Pazar - Kolacı Siparişi", name="sip_kolaci")
     job_queue.run_daily(siparis_job, time(11, 0, tzinfo=TZ), days=(0,), data="🍺 Pazartesi - Biracı Siparişi", name="sip_biraci")
     job_queue.run_daily(siparis_job, time(11, 0, tzinfo=TZ), days=(2,), data="🥃 Çarşamba - Rakıcı Siparişi", name="sip_rakici")
@@ -241,12 +256,12 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("panel", panel))
     app.add_handler(CommandHandler("id", id))
+    app.add_handler(CommandHandler("testgrup", testgrup))
     app.add_handler(CommandHandler("odeme", odeme))
     app.add_handler(CommandHandler("reset", reset))
     app.add_handler(CommandHandler(["c12", "c14", "c17", "c20", "c23"], manual_checklist))
     app.add_handler(CommandHandler(["kolaci", "biraci", "rakici"], manual_siparis))
 
-    print("Bot Türkiye saatine göre çalışıyor 🇹🇷")
     app.run_polling()
 
 if __name__ == "__main__":
