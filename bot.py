@@ -636,4 +636,4 @@ async def odeme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # job kur: ödeme zamanı + escalation
     context.job_queue.run_once(send_payment_reminder, when=when_dt, data=int(rid), name=f"pay_{rid}")
     esc_time = when_dt + timedelta(minutes=ESCALATE_AFTER_MINUTES)
-    context.job_queue.run_once(escalate_payment_if_unpaid, when=esc_time, data=int(rid), name=f"payment_{rid}"
+    context.job_queue.run_once(escalate_payment_if_unpaid, when=esc_time, data=int(rid), name=f"payment_{rid}")
