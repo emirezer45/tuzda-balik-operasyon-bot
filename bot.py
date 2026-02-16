@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 # =========================
 # AYARLAR
 # =========================
-TOKEN = os.getenv("7729207035:AAEbnQtXwScP8AvscMFh67ZBfMrXJG1oZUU", "").strip()if not TOKEN:
+TOKEN = ("7729207035:AAEbnQtXwScP8AvscMFh67ZBfMrXJG1oZUU", "").strip()if not TOKEN:
     raise ValueError("BOT_TOKEN boş! Railway Variables'a BOT_TOKEN ekle.")  # Railway Variables: BOT_TOKEN
 MUDUR_ID = 1753344846
 TZ = ZoneInfo("Europe/Istanbul")
