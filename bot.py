@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 # =========================
 # AYARLAR
 # =========================
-TOKEN = ("7729207035:AAEbnQtXwScP8AvscMFh67ZBfMrXJG1oZUU", "").strip()  # Railway Variables: BOT_TOKEN
+TOKEN = "7729207035:AAEbnQtXwScP8AvscMFh67ZBfMrXJG1oZUU", "".strip()  # Railway Variables: BOT_TOKEN
 MUDUR_ID = 1753344846
 TZ = ZoneInfo("Europe/Istanbul")
 
