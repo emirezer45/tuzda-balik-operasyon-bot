@@ -22,7 +22,6 @@ logging.basicConfig(level=logging.INFO)
 # AYARLAR
 # =========================
 TOKEN = "7729207035:AAEoHIsvgN8NuI6RPgyQNBReRLw8dxCyOdE"
-    raise ValueError("BOT_TOKEN boş! Railway Variables'a BOT_TOKEN ekle.")  # Railway Variables: BOT_TOKEN
 MUDUR_ID = 1753344846
 TZ = ZoneInfo("Europe/Istanbul")
 
